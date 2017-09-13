@@ -241,6 +241,15 @@ class G3D:
         zforplot=(ztab[:-1]+ztab[1:])/2
         return avg, zforplot
         
+######################################################################                                                                                        
+# PROCESS : Horizontally-averaged profile in z coordinate, taking sigma coordinate in consideration                    
+
+    def avgprofileSIGMA(self,varname):
+        self.testvar(varname)
+        self.testtime()
+        exec('loc=self.'+varname)
+        avg=ma.average(loc,(2,3))
+        return avg
 
 ######################################################################
 # TEST : spatial coordinates
@@ -266,7 +275,6 @@ class G3D:
         lat=self.lat[j]
         return lon,lat
 
-
 ######################################################################
 #
 # PROCESS : Depth profile at given coordinate
@@ -283,7 +291,6 @@ class G3D:
         i,j=self.test_coord(c1,c2)
 
         zforplot=self.z[:,j,i]
-#        zforplot=zforplot[~zforplot.mask]
         exec('loc=self.'+varname)
 
         print loc.shape
@@ -291,3 +298,19 @@ class G3D:
         print lloc.shape
 
         return lloc,zforplot
+
+
+##########################################################################
+    def vertint(self,varname,zinf=-10000,zsup=2):
+
+        self.testz()
+        self.testvar(varname)
+        self.testtime()
+
+        exec('loc=self.'+varname)
+        vint=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
+        print(vint.shape)
+        for t in xrange(self.time.shape[0]):
+            vint[t]=ma.sum(loc[t]*self.dz,0)
+        
+        return vint
