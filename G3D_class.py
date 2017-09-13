@@ -61,7 +61,7 @@ class G3D:
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
         with Dataset(self.infile,'r') as nc:
-            self.z = -1* nc.variables['depth'][1] # Let it be 3D for now           
+            self.z   = nc.variables['depth'][1] # Let it be 3D for now           
             self.lon = nc.variables['longitude'][:]
             self.lat = nc.variables['latitude'][:]
 
@@ -73,9 +73,9 @@ class G3D:
         # dynamic dz considering ETA can be done later
         self.zi=ma.zeros(self.z.shape+np.array([1,0,0]))
         for k in xrange(0,12):
-            self.zi[k]= ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
+            self.zi[k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
         for k in xrange(12,self.zi.shape[0]):
-            self.zi[k]= np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
+            self.zi[k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
             
 ######################################################################
 # VARIABLE DEF : DZ
@@ -224,8 +224,8 @@ class G3D:
         exec('loc=self.'+varname)
         
         if (len(self.dz.shape)==3)and(len(loc.shape)==4):            
-            gridZU = -self.zi[1:]
-            gridZD = -self.zi[:-1]
+            gridZU = self.zi[1:]
+            gridZD = self.zi[:-1]
             for k in xrange(ztab.shape[0]-1):
                 print('%s / %s'%(k+1,ztab.shape[0]-1))
                 dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
