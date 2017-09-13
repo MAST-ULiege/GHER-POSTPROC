@@ -3,15 +3,21 @@ import numpy.ma as ma
 from netCDF4 import Dataset
 import gsw
 import yaml
+import os.path
+import datetime as dt
 
 class G3D: 
-    '''let's test pyhton classes'''
+    '''let's test python classes'''
 
 ######################################################################
 
     def __init__(self,infile):
         self.infile=infile
-        
+        if os.path.isfile(self.infile):
+            print(self.infile + ' -> OK')
+        else:
+            print(self.infile + ' can not be found')
+       
         try:
             YAML_FILE = 'local.yml'
         except Exception:
@@ -25,20 +31,27 @@ class G3D:
             config = yaml.load(stream)
         
     # this should be read somewhere
-        self.bat_filename = config['BATFILE']
+        self.batfile      = config['BATFILE']
         self.dx           = config['DX']
         self.dy           = config['DY']
     # to get intervals in the double sigma context of GHER
         self.sigI         = config['SIGI']
         self.sigII        = config['SIGII']
         self.hlim         = config['HLIM']
+        self.verbose      = config['VERBOSE']
+        self.figoutputdir = config['PLOTDIR']
         self.instance_bat()
 
 ######################################################################
 # VARIABLE DEF : BAT
 
     def instance_bat(self):
-        with Dataset(self.bat_filename,'r') as nc:
+        if os.path.isfile(self.batfile):
+            print(self.batfile + ' -> OK')
+        else:
+            print(self.batfile + ' can not be found')
+
+        with Dataset(self.batfile,'r') as nc:
             self.bat = nc.variables['bat'][:]
             
 ######################################################################
@@ -49,6 +62,8 @@ class G3D:
         # dynamic z considering ETA can be done later
         with Dataset(self.infile,'r') as nc:
             self.z = -1* nc.variables['depth'][1] # Let it be 3D for now           
+            self.lon = nc.variables['longitude'][:]
+            self.lat = nc.variables['latitude'][:]
 
 ######################################################################
 # VARIABLE DEF : ZI
@@ -90,8 +105,15 @@ class G3D:
         with Dataset(self.infile,'r') as nc:
             try:
                 exec('self.'+varname+ '= nc.variables[''varname''][:]')
+                print( 'Just loaded %s'%(varname))
             except: 
                 print( '%s not found in %s'%(varname,self.infile))
+                print( '-> try to compute')
+             #   try:
+                exec('self.instance_'+varname+'()')
+               # except:
+               #     print('self.instance_'+varname+' is not defined.')
+                    
                 
 ######################################################################
 # UTILITY : STORE
@@ -116,7 +138,8 @@ class G3D:
     #    
         self.testz()
         self.testvar(varname)
-            
+        self.testtime()
+
         integrated=ma.empty(self.time.shape)
         exec('loc=self.'+varname)
         print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
@@ -179,8 +202,10 @@ class G3D:
         except:
             print('%s not found -> loading'%('time'))
             self.gload('time')
+            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in self.time]
         
 ######################################################################
+# PROCESS : Horizontally-averaged profile in z coordinate, taking sigma coordinate in consideration
 
     def avgprofile(self,varname,
             ztab=-1*np.concatenate([np.arange(0,10,2), np.arange(10,40,5),np.arange(50,120,10),np.arange(120,300,50),np.arange(300,1000,200)])
@@ -216,4 +241,53 @@ class G3D:
         zforplot=(ztab[:-1]+ztab[1:])/2
         return avg, zforplot
         
+
 ######################################################################
+# TEST : spatial coordinates
+
+    def test_coord(self,c1,c2):
+        if (type(c1) is int) & (type(c2) is int):
+           #considered as indexes                                                                                                                                   
+            i=c1
+            j=c2
+        else:
+           #considered coordinates   
+            X=c1-self.lon
+            i=X.index(np.min(np.abs(X)))
+            Y=c2-self.lat
+            j=Y.index(np.min(np.abs(X)))
+        return i,j
+        
+######################################################################    
+    
+    def getlonlat(self,c1,c2):
+        i,j=self.test_coord(c1,c2)
+        lon=self.lon[i]
+        lat=self.lat[j]
+        return lon,lat
+
+
+######################################################################
+#
+# PROCESS : Depth profile at given coordinate
+#
+#  inputs : 
+#          * varname 
+#          * indexes : integer will be interpretated as grid indexes, floats as coordinates (lon,lat) 
+
+    def profileatxy(self,varname,c1,c2):
+
+        self.testz()
+        self.testvar(varname)
+        self.testtime()
+        i,j=self.test_coord(c1,c2)
+
+        zforplot=self.z[:,j,i]
+#        zforplot=zforplot[~zforplot.mask]
+        exec('loc=self.'+varname)
+
+        print loc.shape
+        lloc=loc[:,:,j,i]
+        print lloc.shape
+
+        return lloc,zforplot
