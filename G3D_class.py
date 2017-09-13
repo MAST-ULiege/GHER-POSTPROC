@@ -2,6 +2,7 @@ import numpy as np
 import numpy.ma as ma
 from netCDF4 import Dataset
 import gsw
+import yaml
 
 class G3D: 
     '''let's test pyhton classes'''
@@ -10,15 +11,27 @@ class G3D:
 
     def __init__(self,infile):
         self.infile=infile
+        
+        try:
+            YAML_FILE = 'local.yml'
+        except Exception:
+            print("".join(("\n A file called local.yml should be present",
+                       "'\n")))
+        print("\nLaunching with YAML file: %s" % YAML_FILE)
+
+
+    # Read yaml configuration file
+        with open(YAML_FILE, 'r') as stream:
+            config = yaml.load(stream)
+        
     # this should be read somewhere
-        self.bat_filename = "../data/Black120D_2.BAT.nc"
-        self.dx = 3833.10493330708 # [m]
-        self.dy = 5009.26948680300 # [m]
+        self.bat_filename = config['BATFILE']
+        self.dx           = config['DX']
+        self.dy           = config['DY']
     # to get intervals in the double sigma context of GHER
-        self.sigI   =  [0.0000000000E+00, 0.1252266020, 0.2361606956, 0.3344335258, 0.4214901626, 0.4986107349, 0.5669292808, 0.6274504066, 0.6810640693, 0.7285586596,
-                 0.7706325054, 0.8079043627, 0.8409222364, 0.8701716661, 0.8960828185, 0.9190366268, 0.9393706322, 0.9573838711, 0.9733411670, 0.9874772429, 1.000000000]
-        self.sigII  =  [0.0000000000E+00, 0.2234185487, 0.4008862078, 0.5418537855, 0.6538283229, 0.7427728176, 0.8134239316, 0.8695441484, 0.9141219854, 0.9495314360, 0.9776581526, 1.000000000]
-        self.hlim   =  120
+        self.sigI         = config['SIGI']
+        self.sigII        = config['SIGII']
+        self.hlim         = config['HLIM']
         self.instance_bat()
 
 ######################################################################
