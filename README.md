@@ -1,7 +1,7 @@
 # GHER model postprocessing toolbox
 A. Capet
 
-Main class is [G3D_class.py].
+Main class is [G3D_class.py](G3D_class.py).
 It contains the G3D class, and a serie of 
 
 * variable definition : for variables derived from model outputs
