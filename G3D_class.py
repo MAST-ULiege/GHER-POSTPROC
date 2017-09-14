@@ -15,16 +15,16 @@ class G3D:
         self.infile=infile
         if os.path.isfile(self.infile):
             print(self.infile + ' -> OK')
+            self.found=True
         else:
             print(self.infile + ' can not be found')
-       
+            self.found=False
         try:
             YAML_FILE = 'local.yml'
         except Exception:
             print("".join(("\n A file called local.yml should be present",
                        "'\n")))
         print("\nLaunching with YAML file: %s" % YAML_FILE)
-
 
     # Read yaml configuration file
         with open(YAML_FILE, 'r') as stream:
@@ -43,7 +43,7 @@ class G3D:
         self.instance_bat()
 
 ######################################################################
-# VARIABLE DEF : BAT
+# VARIABLE : BAT
 
     def instance_bat(self):
         if os.path.isfile(self.batfile):
@@ -55,7 +55,7 @@ class G3D:
             self.bat = nc.variables['bat'][:]
             
 ######################################################################
-# VARIABLE DEF : Z
+# VARIABLE : Z
 
     def instance_z(self):
         # For now let's build a constant z,
@@ -66,7 +66,7 @@ class G3D:
             self.lat = nc.variables['latitude'][:]
 
 ######################################################################
-# VARIABLE DEF : ZI
+# VARIABLE : ZI
             
     def instance_zi(self):
         # For now let's build a constant dz,
@@ -78,25 +78,12 @@ class G3D:
             self.zi[k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
             
 ######################################################################
-# VARIABLE DEF : DZ
+# VARIABLE : DZ
 
     def instance_dz(self):
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
         self.dz = ma.abs(self.zi[1:]-self.zi[:-1]) 
-
-######################################################################
-# VARIABLE DEF : DENSITY
-
-#    def instance_density(self):
-    
-#        p=gsw.p_from_z(,ttlat)
-#    SA = gsw.SA_from_SP(S[t,:,:,:],p,ttlon,ttlat)
-#    # I considered in situ temperature and ractical salinity from the model .. absolute salinity/practical salinity Temperature/Potential temperature ?
-#    Dloc=gsw.rho(SA,T[t,:,:,:],p)
-#        # For now let's build a constant z,
-#        # dynamic z considering ETA can be done later
-#        self.dz = ma.abs(self.zi[1:]-self.zi[:-1])
 
 ######################################################################
 # UTILITY : LOAD
@@ -175,7 +162,7 @@ class G3D:
         return(avg)
         
 ######################################################################
-        
+# UTILITY : test z        
     def testz(self):
         try:
             self.dz
@@ -186,6 +173,7 @@ class G3D:
             self.instance_dz()
             
 ######################################################################
+# UTILITY : test variable
             
     def testvar(self,varname):
         try:
@@ -195,6 +183,7 @@ class G3D:
             self.gload(varname)
             
 ######################################################################
+# UTILITY : test time
             
     def testtime(self):
         try:
@@ -252,7 +241,7 @@ class G3D:
         return avg
 
 ######################################################################
-# TEST : spatial coordinates
+# UTILITY : test spatial coordinates
 
     def test_coord(self,c1,c2):
         if (type(c1) is int) & (type(c2) is int):
@@ -268,6 +257,7 @@ class G3D:
         return i,j
         
 ######################################################################    
+# UTILITY : provide lon lat coordinates for indexes
     
     def getlonlat(self,c1,c2):
         i,j=self.test_coord(c1,c2)
@@ -301,6 +291,8 @@ class G3D:
 
 
 ##########################################################################
+# PROCESS : Vertical Integration
+
     def vertint(self,varname,zinf=-10000,zsup=2):
 
         self.testz()
@@ -314,3 +306,49 @@ class G3D:
             vint[t]=ma.sum(loc[t]*self.dz,0)
         
         return vint
+
+############################################################################
+# VARIABLE : Density
+
+    def instance_DEN(self):
+
+        self.testz()
+        tlat=np.tile(self.lat, (31,345,1))
+        tlat=np.transpose(tlat,(0,2,1))
+        tlon=np.tile(self.lon, (31, 140,1))
+
+        p  = gsw.p_from_z(self.z,tlat)
+        
+        self.testvar('SAL')
+        self.testvar('TEM')
+        self.DEN = ma.empty(self.SAL.shape)
+        for t in xrange(self.SAL.shape[0]):
+            SA = gsw.SA_from_SP(self.SAL[t],p,tlon,tlat)
+            self.DEN[t]=gsw.rho(SA,self.TEM[t],p)
+
+        del self.SAL
+        del self.TEM
+
+############################################################################
+# UTILITY : unload to free some memory
+
+############################################################################                                                                                                             
+# VARIABLE : Mixed layer depth  
+#
+# NOT READY !!! 
+#
+#        def instance_MLD(t):
+#            #  Might probably be ipmroved a lot.                                                                                                                                                                  #             #  Currently, there are two 1D interpolation by i,j
+#            Dloc=DEN[t]
+#            zloc=z[t]
+#            MLDloc=Dloc[30].copy()*0 # for init                                                                                                             
+#            for i in xrange(Dloc.shape[1]):
+#                for j in xrange(Dloc.shape[2]):
+#                    if ma.is_masked(MLDloc[i,j]):
+#                        continue
+#                    f = interp1d(zloc[:,i,j], Dloc[:,i,j])
+#                    d3=f(-3)
+#                    f = interp1d(Dloc[:,i,j], zloc[:,i,j])
+#            MLDloc[i,j]=f(d3+deltasig)#
+#
+#            return MLDloc

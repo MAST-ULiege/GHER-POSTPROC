@@ -16,13 +16,19 @@ import os
 import G3D_class
 
 yearstart=1980
-yearend=2000
+yearend=2005
 
 for years in range(yearstart,yearend):
     G     = G3D_class.G3D('../Out_002/'+str(years)+'.nc')
+    if not(G.found):
+        print ('I''m skipping years after'+str(years)+'.. Files not found')
+        break
     tt,z  = G.profileatxy('TEM',120,50)
     ss,z  = G.profileatxy('SAL',120,50)
     dd,z  = G.profileatxy('DEN',120,50)
+#    del G.TEM
+#    del G.SAL
+    del G.DEN
     dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in G.time]
     if (years==yearstart):
         ttall    = tt
@@ -57,10 +63,10 @@ plt.contour(datesall,z,ttall.T,levels=[8.35],color='black')
 plt.title('Temp @ Lon : %s E; Lat : % sN'%(lonlab,latlab))
 plt.ylabel('depth - [m]')
 plt.ylim([-500,0])
-fig.savefig(G.figoutputdir+'TEMatXY.png')
+fig.savefig(G.figoutputdir+'OUT2_TEMatXY.png')
 
 ####################                                                                                                                                                                                               
-# 1st figure :
+# 2nd figure :
 ####################                                                                                                                                                                                               
 
 fig=plt.figure(figsize=(15, 8))
@@ -74,7 +80,7 @@ plt.title('Salinity @ Lon : %s E; Lat : % sN'%(lonlab,latlab))
 plt.ylabel('depth - [m]')
 plt.ylim([-500,0])
 plt.colorbar()
-fig.savefig(G.figoutputdir+'SALatXY.png')
+fig.savefig(G.figoutputdir+'OUT2_SALatXY.png')
 
 ####################                                                                                                                                                                                               
 # 3st figure :
@@ -91,7 +97,7 @@ plt.title('Density @ Lon : %s E; Lat : % sN'%(lonlab,latlab))
 plt.ylabel('depth - [m]')
 plt.ylim([-500,0])
 plt.colorbar()
-fig.savefig(G.figoutputdir+'DENatXY.png')
+fig.savefig(G.figoutputdir+'OUT2_DENatXY.png')
 
 
 
