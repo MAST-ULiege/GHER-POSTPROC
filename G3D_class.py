@@ -88,34 +88,71 @@ class G3D:
 ######################################################################
 # UTILITY : LOAD
         
-    def gload(self,varname):
+#    def gload(self,varname):
+#        with Dataset(self.infile,'r') as nc:
+#            try:
+#                exec('self.'+varname+ '= nc.variables[''varname''][:]')
+#                print( 'Just loaded %s'%(varname))
+#            except: 
+#                print( '%s not found in %s'%(varname,self.infile))
+#                print( '-> try to compute')
+#             #   try:
+#                exec('self.instance_'+varname+'()')
+#               # except:
+#               #     print('self.instance_'+varname+' is not defined.')
+
+######################################################################
+# UTILITY : LOAD LOCAL 
+        
+    def gload(self,varname,ti=None,k=None,i=None,j=None):
         with Dataset(self.infile,'r') as nc:
             try:
-                exec('self.'+varname+ '= nc.variables[''varname''][:]')
-                print( 'Just loaded %s'%(varname))
-            except: 
-                print( '%s not found in %s'%(varname,self.infile))
+                if (ti is None) and (k is None) and (i is None) and (j is None):
+                    exec('self.'+varname+ '= nc.variables[varname][:]')
+                    print( 'Just loaded '+ (varname) + ' for full')
+                elif (ti is None) and (k is None) and (i is not None) and (j is not None):
+                    print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                    exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
+                    print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                elif (ti is None) and (k is not None) and (i is None) and (j is None):
+                    exec('self.'+varname+ '= nc.variables[varname][:,k]')
+                    print( 'Just loaded '+ (varname) +' for ki:'+str(k))
+                else:
+                    print(' Stange case encountered in  G3D_class.py : def gload ')
+
+            except Exception as e: 
+                print(e)
+                print( '\n %s not found in %s'%(varname,self.infile))
                 print( '-> try to compute')
-             #   try:
-                exec('self.instance_'+varname+'()')
-               # except:
-               #     print('self.instance_'+varname+' is not defined.')
+                try:
+                    exec('self.instance_'+varname+'()')
+                except:
+                    print('self.instance_'+varname+' is not defined.')
                     
                 
 ######################################################################
 # UTILITY : STORE
 #        
-#    def gstore(self,varname):
-#        with Dataset(self.infile,'a') as nc:
-#            try:
-#                nc.createVariable(varname, np.float32, ('time','level', 'latitude', 'longitude'),zlib=True)
-#            exec('nc.variables[varname][:]=self.'+varname)
-#                
+    def gstore(self,varname):
+        exec('ndim=len(self.'+varname+'.shape)')
+        print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.infile)
+        exec('print(self.'+varname+'.shape)')
+
+        with Dataset(self.infile,'a') as nc:
+            try:
+                if ndim==4:      # assuming here : time, level, lat,lon
+                    nc.createVariable(varname, np.float32, ('time','level', 'latitude', 'longitude'),zlib=True)
+                elif ndim == 3:  # assuming here : time, lat,lon 
+                    nc.createVariable(varname, np.float32, ('time', 'latitude', 'longitude'),zlib=True)
+            except:
+                print ('Seems that '+varname+' already exists on '+self.infile+'. \n I overwrites')
+
+            exec('nc.variables[varname][:]=self.'+varname)
+                
 ######################################################################
 # PROCESS : FULL INTEGRATION
 
     def integratespatial (self,varname):
-    # TODO render dz optionnal, allows to use contant depth, and dz instead
     # TODO allows for a optional mask, that could be 2D, 3D or 4D. 
     #    if dz.shape!=field.shape:
     #        print("Wrong Shapes")
@@ -175,12 +212,20 @@ class G3D:
 ######################################################################
 # UTILITY : test variable
             
-    def testvar(self,varname):
+    def testvar(self,varname,doload=True):
         try:
             exec('self.'+varname)
+            isthere=True
         except:
-            print('%s not found -> loading'%(varname))
-            self.gload(varname)
+            print('%s not found '%(varname))
+            isthere=False
+            if doload:
+                print ('Loading %s'%(varname) )
+                self.gload(varname)
+                isthere=True
+
+        return(isthere)
+                
             
 ######################################################################
 # UTILITY : test time
@@ -231,7 +276,7 @@ class G3D:
         return avg, zforplot
         
 ######################################################################                                                                                        
-# PROCESS : Horizontally-averaged profile in z coordinate, taking sigma coordinate in consideration                    
+# PROCESS : Horizontally-averaged profile in sigma coordinate
 
     def avgprofileSIGMA(self,varname):
         self.testvar(varname)
@@ -276,16 +321,19 @@ class G3D:
     def profileatxy(self,varname,c1,c2):
 
         self.testz()
-        self.testvar(varname)
+        isvar=self.testvar(varname,False)
         self.testtime()
         i,j=self.test_coord(c1,c2)
 
         zforplot=self.z[:,j,i]
-        exec('loc=self.'+varname)
-
-        print loc.shape
-        lloc=loc[:,:,j,i]
-        print lloc.shape
+        if isvar:
+            # for some reason the 4d variable is already loaded in memory
+            exec('loc=self.'+varname)
+            lloc=loc[:,:,j,i]
+        else:
+            # It's not loaded, but we'll load only what we need
+            self.gload(varname,i=i,j=j)
+            exec('lloc=self.'+varname+'i'+str(i)+'j'+str(j))
 
         return lloc,zforplot
 
@@ -310,24 +358,45 @@ class G3D:
 ############################################################################
 # VARIABLE : Density
 
-    def instance_DEN(self):
+    def instance_DEN(self,i=None,j=None,k=None):
 
         self.testz()
-        tlat=np.tile(self.lat, (31,345,1))
+        tlat=np.tile(self.lat, (self.z.shape[0],self.z.shape[2],1))
         tlat=np.transpose(tlat,(0,2,1))
-        tlon=np.tile(self.lon, (31, 140,1))
+        tlon=np.tile(self.lon, (self.z.shape[0], self.z.shape[1],1))
 
-        p  = gsw.p_from_z(self.z,tlat)
-        
-        self.testvar('SAL')
-        self.testvar('TEM')
-        self.DEN = ma.empty(self.SAL.shape)
-        for t in xrange(self.SAL.shape[0]):
-            SA = gsw.SA_from_SP(self.SAL[t],p,tlon,tlat)
-            self.DEN[t]=gsw.rho(SA,self.TEM[t],p)
+        if (i is None) and (j is None) and (k is None):
+            p  = gsw.p_from_z(self.z,tlat)
+            self.testvar('SAL')
+            self.testvar('TEM')
+            self.DEN = ma.empty(self.SAL.shape)
+            for t in xrange(self.SAL.shape[0]):
+                SA = gsw.SA_from_SP(self.SAL[t],p,tlon,tlat)
+                self.DEN[t]=gsw.rho(SA,self.TEM[t],p)
+            
+            if False:
+                self.gstore('DEN')
 
-        del self.SAL
-        del self.TEM
+            del self.SAL
+            del self.TEM
+        elif (i is not None) and (j is not None) and (k is None):
+            # need to be computed only for one profile
+            p  = gsw.p_from_z(self.z[:,j,i],tlat[:,j,i])
+            self.testvar('SAL')
+            self.testvar('TEM')
+            self.DEN = ma.empty(self.SAL.shape)
+            for t in xrange(self.SAL.shape[0]):
+                self.gload('SAL',i=i,j=j)
+                self.gload('TEM',i=i,j=j)
+                exec('SALloc=self.SALi'+str(i)+'j'+str(j))
+                exec('TEMloc=self.TEMi'+str(i)+'j'+str(j))
+                SA = gsw.SA_from_SP(SALloc[t],p,tlon,tlat)
+                DENloc=gsw.rho(SA,TEMloc[t],p)
+                exec('self.DENi'+str(i)+'j'+str(j)+'=DENloc')
+
+            if False:
+                self.gstore('DEN')
+
 
 ############################################################################
 # UTILITY : unload to free some memory
