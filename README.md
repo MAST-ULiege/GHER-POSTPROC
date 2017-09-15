@@ -15,4 +15,6 @@ Examples :
 Post if you want a working examples with real data.
 
 
-[Currently defined process function](Process.md)
+[**Currently defined process function**](Process.md)
+
+[**Currently defined variable function**](Variable.md)
