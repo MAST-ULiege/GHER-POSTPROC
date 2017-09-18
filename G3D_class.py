@@ -393,12 +393,12 @@ class G3D:
         self.testtime()
 
         exec('loc=self.'+varname)
-        vint=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
+        vmean=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
         print(vint.shape)
         for t in xrange(self.time.shape[0]):
-            vint[t]  = ma.sum ( loc[t]*self.dz , 0)
-            vol[t]   = ma.sum (        self.dz , 0)
-            vmean[t] = vint[t]/vol[t] 
+            vmean[t]  = ma.sum ( loc[t]*self.dz , 0)
+            vol      = ma.sum (        self.dz , 0)
+            vmean[t] = vmean[t]/vol
 
         return vmean
 
@@ -462,13 +462,13 @@ class G3D:
             print(' Case not ready, please code .. ')
 
 
-############################################################################                                                                                                                                       # VARIABLE SSS                                                                                                                                                                         
+############################################################################                                                                                                                                       # VARIABLE CCCn
 
     def instance_CCCn(self, i=None,j=None,k=None):
         if (i is None) and (j is None) :
             self.testvar('TEM')
             self.testvar('DEN')
-            self.CC   = ma.masked_where( np.any( [ self.DEN<1014.5, self.TEM > 8.35]), self.DEN * (self.TEM-8.35) * 3985 / 1e6 )
+            self.CC   = ma.masked_where( (self.DEN<1014.5)|(self.TEM > 8.35), self.DEN * (self.TEM-8.35) * 3985 / 1e6 )
             self.CCCn = self.vertint('CC')
             self.CCCn = ma.expand_dims(self.CCCn,1)
         else:
@@ -484,7 +484,7 @@ class G3D:
             self.testvar('SAL')
             self.testvar('DEN')
 
-            self.AVRDEN = ma.tile(self.vertmean('DEN'),(1,31,1,1))
+            self.AVRDEN = np.tile(self.vertmean('DEN'),(1,31,1,1))
 
             for t in xrange(self.time.shape[0]):
                 self.PEAv[t] = 9.81 *self.z*(self.AVRDEN[t]-self.DEN[t])
