@@ -195,11 +195,11 @@ class G3D:
         # DIMENSIONAL CASE 
         # 2D VARIABLE
         print(loc.shape)
-        if (len(loc.shape)==3):
+        if ( loc.shape[1]==1 ):
             print('2D variable')
             # MASKING
             if (maskin is not None):
-                print('Found Mask with '+str(maskin.sum())+' masked points.')
+                print('Found Mask with ' + str(maskin.sum()) + ' masked points.')
                 if len(maskin.shape)==3:
                     print('2D mask .. OK')
                     for t in xrange(self.time.shape[0]):
@@ -377,7 +377,7 @@ class G3D:
 
         exec('loc=self.'+varname)
         vint=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
-        print(vint.shape)
+
         for t in xrange(self.time.shape[0]):
             vint[t]=ma.sum(loc[t]*self.dz,0)
         
@@ -426,6 +426,7 @@ class G3D:
 
             del self.SAL
             del self.TEM
+
         elif (i is not None) and (j is not None) and (k is None):
             # need to be computed only for one profile
             p  = gsw.p_from_z(self.z[:,j,i],tlat[:,j,i])
@@ -465,8 +466,8 @@ class G3D:
 
     def instance_CCCn(self, i=None,j=None,k=None):
         if (i is None) and (j is None) :
-            self.gload('TEM')
-            self.gload('DEN')
+            self.testvar('TEM')
+            self.testvar('DEN')
             self.CC   = ma.masked_where( np.any( [ self.DEN<1014.5, self.TEM > 8.35]), self.DEN * (self.TEM-8.35) * 3985 / 1e6 )
             self.CCCn = self.vertint('CC')
             self.CCCn = ma.expand_dims(self.CCCn,1)
@@ -479,9 +480,9 @@ class G3D:
 
     def instance_PEA(self, i=None,j=None,k=None):
         if (i is None) and (j is None) :
-            self.gload('TEM')
-            self.gload('SAL')
-            self.gload('DEN')
+            self.testvar('TEM')
+            self.testvar('SAL')
+            self.testvar('DEN')
 
             self.AVRDEN = ma.tile(self.vertmean('DEN'),(1,31,1,1))
 
