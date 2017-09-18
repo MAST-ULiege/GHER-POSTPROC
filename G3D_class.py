@@ -13,12 +13,14 @@ class G3D:
 
     def __init__(self,infile):
         self.infile=infile
+        print(' *******  \n')
         if os.path.isfile(self.infile):
             print(self.infile + ' -> OK')
             self.found=True
         else:
             print(self.infile + ' can not be found')
             self.found=False
+            return
         try:
             YAML_FILE = 'local.yml'
         except Exception:
@@ -40,7 +42,9 @@ class G3D:
         self.hlim         = config['HLIM']
         self.verbose      = config['VERBOSE']
         self.figoutputdir = config['PLOTDIR']
+
         self.instance_bat()
+        self.testtime()
 
 ######################################################################
 # VARIABLE : BAT
@@ -115,7 +119,7 @@ class G3D:
                     exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
                     print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                 elif (ti is None) and (k is not None) and (i is None) and (j is None):
-                    exec('self.'+varname+ '= nc.variables[varname][:,k]')
+                    exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
                     print( 'Just loaded '+ (varname) +' for ki:'+str(k))
                 else:
                     print(' Stange case encountered in  G3D_class.py : def gload ')
@@ -123,11 +127,12 @@ class G3D:
             except Exception as e: 
                 print(e)
                 print( '\n %s not found in %s'%(varname,self.infile))
-                print( '-> try to compute')
-                try:
-                    exec('self.instance_'+varname+'()')
-                except:
-                    print('self.instance_'+varname+' is not defined.')
+                print( '-> Calling')
+                #try:
+                print('     self.instance_'+varname+'(i='+str(i)+',j='+str(j)+',k='+str(k)+')')
+                exec('self.instance_'+varname+'(i=i,j=j,k=k)')
+                #except:
+                #    print('self.instance_'+varname+' is not defined.')
                     
                 
 ######################################################################
@@ -178,16 +183,39 @@ class G3D:
 ######################################################################
 # PROCESS : FULL AVERAGE
 
-    def avgspatial (self,varname):
+    def avgspatial (self,varname,maskin=None):
         # in the sense of volumetric mean
         self.testz()
         self.testvar(varname)        
                         
         avg=ma.empty(self.time.shape)
-        exec('loc=self.'+varname)
-        print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
-        if (len(self.dz.shape)==3)and(len(loc.shape)==4):
-            print("4D")
+        exec('loc=self.'+varname+'.copy()')
+        print('In avgptial \n dz: %s  \n Field: %s'%( len(self.dz.shape),len(loc.shape)))
+
+        # DIMENSIONAL CASE 
+        # 2D VARIABLE
+        print(loc.shape)
+        if (len(loc.shape)==3):
+            print('2D variable')
+            # MASKING
+            if (maskin is not None):
+                print('Found Mask with '+str(maskin.sum())+' masked points.')
+                if len(maskin.shape)==3:
+                    print('2D mask .. OK')
+                    for t in xrange(self.time.shape[0]):
+                        loc[t]=ma.masked_where(maskin,loc[t])
+
+            # AVERAGING
+            for t in xrange(self.time.shape[0]):
+                bi=loc[t]*self.dy*self.dx
+                vol=ma.masked_where(bi.mask,self.dy*self.dx*np.ones(bi.shape))
+                avg[t] = ma.sum(bi)/ma.sum(vol)
+
+        # 3D VARIABLE
+        elif (loc.shape[1]>1):
+            if (maskin is not None):
+                print('Masking of 3D vars not implemented yet .. Complete G3D_class.py') 
+            print("3D variable")
             for t in xrange(self.time.shape[0]):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 vol=ma.masked_where(bi.mask,self.dz*self.dy*self.dx)
@@ -355,6 +383,25 @@ class G3D:
         
         return vint
 
+#########################################################################                                                                                                                                          
+# PROCESS : Vertical Mean
+  
+    def vertmean(self,varname,zinf=-10000,zsup=2):
+
+        self.testz()
+        self.testvar(varname)
+        self.testtime()
+
+        exec('loc=self.'+varname)
+        vint=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
+        print(vint.shape)
+        for t in xrange(self.time.shape[0]):
+            vint[t]  = ma.sum ( loc[t]*self.dz , 0)
+            vol[t]   = ma.sum (        self.dz , 0)
+            vmean[t] = vint[t]/vol[t] 
+
+        return vmean
+
 ############################################################################
 # VARIABLE : Density
 
@@ -382,10 +429,8 @@ class G3D:
         elif (i is not None) and (j is not None) and (k is None):
             # need to be computed only for one profile
             p  = gsw.p_from_z(self.z[:,j,i],tlat[:,j,i])
-            self.testvar('SAL')
-            self.testvar('TEM')
-            self.DEN = ma.empty(self.SAL.shape)
-            for t in xrange(self.SAL.shape[0]):
+#            self.DEN = ma.empty(self.SAL.shape)
+            for t in xrange(self.time.shape[0]):
                 self.gload('SAL',i=i,j=j)
                 self.gload('TEM',i=i,j=j)
                 exec('SALloc=self.SALi'+str(i)+'j'+str(j))
@@ -400,6 +445,55 @@ class G3D:
 
 ############################################################################
 # UTILITY : unload to free some memory
+
+
+############################################################################
+# VARIABLE SSS
+
+    def instance_SSS(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.gload('SAL',k=30) 
+            self.SSS=self.SALk30
+            del self.SALk30
+            self.SSS=ma.expand_dims(self.SSS,1)
+            
+        else:
+            print(' Case not ready, please code .. ')
+
+
+############################################################################                                                                                                                                       # VARIABLE SSS                                                                                                                                                                         
+
+    def instance_CCCn(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.gload('TEM')
+            self.gload('DEN')
+            self.CC   = ma.masked_where( np.any( [ self.DEN<1014.5, self.TEM > 8.35]), self.DEN * (self.TEM-8.35) * 3985 / 1e6 )
+            self.CCCn = self.vertint('CC')
+            self.CCCn = ma.expand_dims(self.CCCn,1)
+        else:
+            print(' Case not ready, please code .. ')
+
+
+############################################################################
+# VARIABLE PEA : Potential Energy Anomaly
+
+    def instance_PEA(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.gload('TEM')
+            self.gload('SAL')
+            self.gload('DEN')
+
+            self.AVRDEN = ma.tile(self.vertmean('DEN'),(1,31,1,1))
+
+            for t in xrange(self.time.shape[0]):
+                self.PEAv[t] = 9.81 *self.z*(self.AVRDEN[t]-self.DEN[t])
+
+            self.PEA = self.vertint(PEAv)
+            self.PEA= ma.expand_dims(self.PEA,1)
+
+        else:
+            print(' Case not ready, please code .. ')
+
 
 ############################################################################                                                                                                             
 # VARIABLE : Mixed layer depth  
