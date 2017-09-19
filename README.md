@@ -6,14 +6,14 @@ It contains the G3D class, and a serie of
 
 * variable definition : for variables derived from model outputs
 * processing definition : integrate, average, along various dimensions, using masks, etc ... 
-* utilities : eg. ad derived variables to the model ouput files, etc ... 
+* utilities : eg. add derived variables to the model ouput files, ouptut new netcdf, plotting, etc ... 
 
 Examples : 
 
+* [Simple.py](Simple.py)
 * [CentralVertProperties.py](CentralVertProperties.py)
 
-Post if you want a working examples with real data.
-
+User-specific variables ( in and out directories, configurations fiels , etc .. ) should be given in the file local.yml, for which a [template](local.yml.template) is provided 
 
 [**Currently defined process function**](Process.md)
 
