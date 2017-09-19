@@ -13,7 +13,7 @@ Examples :
 * [EasyExample.py](Examples/EasyExample.py) (Annoted with explainations)
 * [CentralVertProperties.py](Examples/CentralVertProperties.py)
 
-User-specific variables ( in and out directories, configurations fiels , etc .. ) should be given in the file local.yml, for which a [template](local.yml.template) is provided 
+User-specific variables ( in and out directories, configurations fiels , etc .. ) should be given in the file `local.yml`, for which a [template](local.yml.template) is provided 
 
 
 For further documentation, refer to the [local wiki](https://github.com/acapet/GHER-POSTPROC/wiki)
