@@ -365,7 +365,6 @@ class G3D:
 
         return lloc,zforplot
 
-
 ##########################################################################
 # PROCESS : Vertical Integration
 
@@ -443,7 +442,6 @@ class G3D:
             if False:
                 self.gstore('DEN')
 
-
 ############################################################################
 # UTILITY : unload to free some memory
 
@@ -466,8 +464,8 @@ class G3D:
 
     def instance_CCCn(self, i=None,j=None,k=None):
         if (i is None) and (j is None) :
-            self.testvar('TEM')
             self.testvar('DEN')
+            self.testvar('TEM')
             self.CC   = ma.masked_where( (self.DEN<1014.5)|(self.TEM > 8.35), self.DEN * (self.TEM-8.35) * 3985 / 1e6 )
             self.CCCn = self.vertint('CC')
             self.CCCn = ma.expand_dims(self.CCCn,1)
