@@ -15,6 +15,5 @@ Examples :
 
 User-specific variables ( in and out directories, configurations fiels , etc .. ) should be given in the file local.yml, for which a [template](local.yml.template) is provided 
 
-[**Currently defined process function**](Process.md)
 
-[**Currently defined variable function**](Variable.md)
+For further documentation, refer to the [local wiki](https://github.com/acapet/GHER-POSTPROC/wiki)
