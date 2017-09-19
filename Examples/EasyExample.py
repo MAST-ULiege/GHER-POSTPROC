@@ -14,7 +14,7 @@ import G3D_class
 # Up to now I'm working with 4D netcdf files containing several variables. 
 # Outputs from different files can be merged easily, as can be seen in other examples
 
-G  = G3D_class.G3D('../Out_001/1982.nc')
+G  = G3D_class.G3D('../data/CART1CLIP/1980.nc')
 
 # All loaded variables are attributes of the G3D instance.
 # For instance the variable "bat" is defined directly when the object is instantiated. 
@@ -50,7 +50,7 @@ formator = mdates.AutoDateFormatter(locator)
 
 fig=plt.figure(figsize=(15, 8))
 
-ax=plt.subplot(1, 1, 2)
+ax=plt.subplot(1, 1, 1)
 ax.xaxis_date()
 ax.xaxis.set_major_locator(locator)
 ax.xaxis.set_major_formatter(formator)
