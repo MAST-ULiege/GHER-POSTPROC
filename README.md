@@ -10,7 +10,7 @@ It contains the G3D class, and a serie of
 
 Examples : 
 
-* [Simple.py](Simple.py)
+* [EasyExample.py](EasyExample.py)
 * [CentralVertProperties.py](CentralVertProperties.py)
 
 User-specific variables ( in and out directories, configurations fiels , etc .. ) should be given in the file local.yml, for which a [template](local.yml.template) is provided 
