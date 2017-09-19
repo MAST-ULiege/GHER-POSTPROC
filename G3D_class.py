@@ -265,13 +265,30 @@ class G3D:
             print('%s not found -> loading'%('time'))
             self.gload('time')
             self.dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in self.time]
+
+######################################################################
+# UTILITY : Apply a mask on a variable, handling dimension cases. 
+
+    def maskvar(self,loc, maskin):
+    
+        if (len(loc.shape)==4) and (len(maskin.shape)==2):
+            print('Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
+            for t in xrange(loc.shape[0]):
+                for k in  xrange(loc.shape[1]):
+                    loc[t,k,:,:]=ma.masked_where(maskin,loc[t,k,:,:]) # ma.expand_dims(ma.expand_dims(maskin,0),0)
+        else:
+            print('NOT Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
+                
+        return loc
+
         
 ######################################################################
 # PROCESS : Horizontally-averaged profile in z coordinate, taking sigma coordinate in consideration
 
     def avgprofile(self,varname,
-            ztab=-1*np.concatenate([np.arange(0,10,2), np.arange(10,40,5),np.arange(50,120,10),np.arange(120,300,50),np.arange(300,1000,200)])
-             ):
+                   ztab=-1*np.concatenate([np.arange(0,10,2), np.arange(10,40,5),np.arange(50,120,10),np.arange(120,300,50),np.arange(300,1000,200)]),
+                   maskin=None
+                   ):
         # The idea is to get an average profile as a function of time
         # return is 2D : [z,time]
         # sigma-space makes it a bit complicate
@@ -283,8 +300,12 @@ class G3D:
         self.testtime()
         
         avg = ma.empty((self.time.shape[0],ztab.shape[0]-1))
-        exec('loc=self.'+varname)
         
+        exec('loc=self.'+varname)
+
+        if maskin is not None:
+            loc = self.maskvar(loc,maskin)
+       
         if (len(self.dz.shape)==3)and(len(loc.shape)==4):            
             gridZU = self.zi[1:]
             gridZD = self.zi[:-1]
@@ -306,10 +327,14 @@ class G3D:
 ######################################################################                                                                                        
 # PROCESS : Horizontally-averaged profile in sigma coordinate
 
-    def avgprofileSIGMA(self,varname):
+    def avgprofileSIGMA(self,varname, maskin=None):
         self.testvar(varname)
         self.testtime()
         exec('loc=self.'+varname)
+        
+        if maskin is not None:
+            loc = self.maskvar(loc,maskin)
+
         avg=ma.average(loc,(2,3))
         return avg
 
