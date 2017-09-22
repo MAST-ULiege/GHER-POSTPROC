@@ -349,9 +349,9 @@ class G3D:
         else:
            #considered coordinates   
             X=c1-self.lon
-            i=X.index(np.min(np.abs(X)))
+            i=abs(X).argmin()
             Y=c2-self.lat
-            j=Y.index(np.min(np.abs(X)))
+            j=abs(Y).argmin()
         return i,j
         
 ######################################################################    
@@ -543,3 +543,20 @@ class G3D:
 #            MLDloc[i,j]=f(d3+deltasig)#
 #
 #            return MLDloc
+
+
+############################################################################   
+# VARIABLE tracer age ... should be made generic for tracer number
+
+    def instance_T1age(self, i=None, j=None, k=None):
+
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('T1A')
+            self.testvar('T1C')
+            self.T1age=ma.masked_where(self.T1C<1e-2, self.T1A/self.T1C)
+        else:
+            self.gload('T1A',i=i,j=j)
+            self.gload('T1C',i=i,j=j)
+            exec('T1Aloc=self.T1Ai'+str(i)+'j'+str(j))
+            exec('T1Cloc=self.T1Ci'+str(i)+'j'+str(j))
+            exec('self.T1agei'+str(i)+'j'+str(j)+'=ma.masked_where(T1Cloc<1e-2, T1Aloc/ T1Cloc)')
