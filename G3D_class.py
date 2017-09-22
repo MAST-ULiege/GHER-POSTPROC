@@ -366,7 +366,7 @@ class G3D:
 ######################################################################
 #
 # PROCESS : Depth profile at given coordinate
-#
+#          
 #  inputs : 
 #          * varname 
 #          * indexes : integer will be interpretated as grid indexes, floats as coordinates (lon,lat) 
@@ -483,6 +483,10 @@ class G3D:
             
         else:
             print(' Case not ready, please code .. ')
+
+        self.SSSinfo.units='p.s.u.'
+        self.SSSinfo.longname='Surface Salinity'
+        self.SSSinfo.dims='2D'
 
 
 ############################################################################                                                                                                                                       # VARIABLE CCCn
