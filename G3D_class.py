@@ -12,7 +12,12 @@ class G3D:
 ######################################################################
 
     def __init__(self,infile):
+
         self.infile=infile
+
+        #The diag filename can be used to store computed diagnostic
+        self.diagfile= self.infile[:-3]+".diag.nc"
+
         print(' *******  \n')
         if os.path.isfile(self.infile):
             print(self.infile + ' -> OK')
@@ -137,13 +142,38 @@ class G3D:
                 
 ######################################################################
 # UTILITY : STORE
-#        
+#
+# create a copy of the file "in.nc" as "in.ext.nc" copy dimension and attributes and add the requested value
+         
     def gstore(self,varname):
+        
+        
+        try:
+            with Dataset(self.infile,'r') as nc:
+                lon= nc.variables['time'][:]
+        except:
+            # -> the diag file does not exist.
+            # We should create one with same dimension and attributes
+            with Dataset(self.infile,'r') as inf, Dataset(self.diagfile,'w') as diagf:
+                # copy attributes
+                for name in inf.ncattrs():
+                    diagf.setncattr(name, inf.getncattr(name))
+
+                #copy dimensions
+                for name, dimension in inf.dimensions.items():
+                    diagf.createDimension(name, len(dimension) if not dimension.isunlimited() else None)
+
+                for name, variable in inf.variables.items():
+                    # take out the variable you don't want
+                    if name  in ['longitudes','lattitude','time','depth','level']: 
+                        x = diagf.createVariable(name, variable.datatype, variable.dimensions)
+                        diagf.variables[name][:] = inf.variables[name][:]
+
         exec('ndim=len(self.'+varname+'.shape)')
         print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.infile)
         exec('print(self.'+varname+'.shape)')
 
-        with Dataset(self.infile,'a') as nc:
+        with Dataset(self.diagfile,'a') as nc:
             try:
                 if ndim==4:      # assuming here : time, level, lat,lon
                     nc.createVariable(varname, np.float32, ('time','level', 'latitude', 'longitude'),zlib=True)
