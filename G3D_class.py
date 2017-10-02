@@ -114,8 +114,8 @@ class G3D:
 # UTILITY : LOAD LOCAL 
         
     def gload(self,varname,ti=None,k=None,i=None,j=None):
-        with Dataset(self.infile,'r') as nc:
-            try:
+        try:
+            with Dataset(self.infile,'r') as nc:
                 if (ti is None) and (k is None) and (i is None) and (j is None):
                     exec('self.'+varname+ '= nc.variables[varname][:]')
                     print( 'Just loaded '+ (varname) + ' for full')
@@ -128,6 +128,23 @@ class G3D:
                     print( 'Just loaded '+ (varname) +' for ki:'+str(k))
                 else:
                     print(' Stange case encountered in  G3D_class.py : def gload ')
+                    
+        except: 
+            try:
+                with Dataset(self.diagfile,'r') as nc:
+                    if (ti is None) and (k is None) and (i is None) and (j is None):
+                        exec('self.'+varname+ '= nc.variables[varname][:]')
+                        print( 'Just loaded '+ (varname) + ' for full')
+                    elif (ti is None) and (k is None) and (i is not None) and (j is not None):
+                        print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
+                        print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                    elif (ti is None) and (k is not None) and (i is None) and (j is None):
+                        exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
+                        print( 'Just loaded '+ (varname) +' for ki:'+str(k))
+                    else:
+                        print(' Stange case encountered in  G3D_class.py : def gload ')
+
 
             except Exception as e: 
                 print(e)
@@ -149,7 +166,7 @@ class G3D:
         
         
         try:
-            with Dataset(self.infile,'r') as nc:
+            with Dataset(self.diagfile,'r') as nc:
                 lon= nc.variables['time'][:]
         except:
             # -> the diag file does not exist.
@@ -169,19 +186,21 @@ class G3D:
                         x = diagf.createVariable(name, variable.datatype, variable.dimensions)
                         diagf.variables[name][:] = inf.variables[name][:]
 
-        exec('ndim=len(self.'+varname+'.shape)')
+        exec('ndim=len(self.'+varname+'.squeeze().shape)')
         print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.infile)
         exec('print(self.'+varname+'.shape)')
 
         with Dataset(self.diagfile,'a') as nc:
+            print('ndim : '+ str(ndim) )
             try:
                 if ndim==4:      # assuming here : time, level, lat,lon
-                    nc.createVariable(varname, np.float32, ('time','level', 'latitude', 'longitude'),zlib=True)
+                    nc.createVariable(varname, np.float32, ('time',     'level', 'latitude', 'longitude'),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
-                    nc.createVariable(varname, np.float32, ('time', 'latitude', 'longitude'),zlib=True)
+                    nc.createVariable(varname, np.float32, ('time', 'singleton', 'latitude', 'longitude'),zlib=True)
             except:
                 print ('Seems that '+varname+' already exists on '+self.infile+'. \n I overwrites')
 
+            
             exec('nc.variables[varname][:]=self.'+varname)
                 
 ######################################################################
@@ -514,9 +533,9 @@ class G3D:
         else:
             print(' Case not ready, please code .. ')
 
-        self.SSSinfo.units='p.s.u.'
-        self.SSSinfo.longname='Surface Salinity'
-        self.SSSinfo.dims='2D'
+#        self.SSSinfo.units='p.s.u.'
+#        self.SSSinfo.longname='Surface Salinity'
+#        self.SSSinfo.dims='2D'
 
 
 ############################################################################                                                                                                                                       # VARIABLE CCCn
