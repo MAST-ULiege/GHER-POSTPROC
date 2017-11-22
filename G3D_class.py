@@ -6,8 +6,8 @@ import yaml
 import os.path
 import datetime as dt
 
-class G3D: 
-    '''let's test python classes'''
+class G3D(object): 
+    '''This is a class for model outputs exploration. It is based on GHER3D model outputs, but child classes are available for other models.'''
 
 ######################################################################
 
@@ -28,19 +28,24 @@ class G3D:
             return
         try:
             YAML_FILE = 'local.yml'
+            print("\nLaunching with YAML file: %s" % YAML_FILE)
+            # Read yaml configuration file
+            with open(YAML_FILE, 'r') as stream:
+                config = yaml.load(stream)
         except Exception:
-            print("".join(("\n A file called local.yml should be present",
-                       "'\n")))
-        print("\nLaunching with YAML file: %s" % YAML_FILE)
-
-    # Read yaml configuration file
-        with open(YAML_FILE, 'r') as stream:
-            config = yaml.load(stream)
+            print("".join(("\n A file called local.yml should be present","'\n")))
         
+
+        try:
+            self.model    = config['MODEL'] 
+        except :
+            self.model    = 'GHER'
+
     # this should be read somewhere
         self.batfile      = config['BATFILE']
         self.dx           = config['DX']
         self.dy           = config['DY']
+
     # to get intervals in the double sigma context of GHER
         self.sigI         = config['SIGI']
         self.sigII        = config['SIGII']
@@ -69,6 +74,10 @@ class G3D:
     def instance_z(self):
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
+        
+        if self.model is 'NEMO':
+            self.z   = nc.variables['deptht'][:]
+
         with Dataset(self.infile,'r') as nc:
             self.z   = nc.variables['depth'][1] # Let it be 3D for now           
             self.lon = nc.variables['longitude'][:]
@@ -115,6 +124,7 @@ class G3D:
         
     def gload(self,varname,ti=None,k=None,i=None,j=None):
         try:
+            # looking for the variable in the original file
             with Dataset(self.infile,'r') as nc:
                 if (ti is None) and (k is None) and (i is None) and (j is None):
                     exec('self.'+varname+ '= nc.variables[varname][:]')
@@ -131,6 +141,7 @@ class G3D:
                     
         except: 
             try:
+                # looking for the variable in the diag file (created by function gstore)
                 with Dataset(self.diagfile,'r') as nc:
                     if (ti is None) and (k is None) and (i is None) and (j is None):
                         exec('self.'+varname+ '= nc.variables[varname][:]')
@@ -147,6 +158,7 @@ class G3D:
 
 
             except Exception as e: 
+                # looking for an instance function allowing to define this variable
                 print(e)
                 print( '\n %s not found in %s'%(varname,self.infile))
                 print( '-> Calling')
@@ -197,6 +209,8 @@ class G3D:
                     nc.createVariable(varname, np.float32, ('time',     'level', 'latitude', 'longitude'),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
                     nc.createVariable(varname, np.float32, ('time', 'singleton', 'latitude', 'longitude'),zlib=True)
+                elif ndim == 1:
+                    nc.createVariable(varname, np.float32, ('time'),zlib=True)
             except:
                 print ('Seems that '+varname+' already exists on '+self.infile+'. \n I overwrites')
 
@@ -387,6 +401,27 @@ class G3D:
         avg=ma.average(loc,(2,3))
         return avg
 
+
+
+######################################################################                                                                                                                                              
+# PROCESS : Horizontally integrated profile in sigma coordinate 
+
+
+    def horintprofileSIGMA(self,varname, maskin=None):
+        self.testvar(varname)
+        self.testtime()
+        exec('loc=self.'+varname)
+
+        if maskin is not None:
+            loc = self.maskvar(loc,maskin)
+
+        hint=ma.empty( (loc.shape[0],loc.shape[1]) )
+    
+        for t in xrange(self.time.shape[0]):
+            hint[t]=ma.sum(loc[t]*self.dz*self.dx*self.dy,(1,2))
+
+        return hint
+
 ######################################################################
 # UTILITY : test spatial coordinates
 
@@ -469,7 +504,7 @@ class G3D:
         vmean=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
         print(vint.shape)
         for t in xrange(self.time.shape[0]):
-            vmean[t]  = ma.sum ( loc[t]*self.dz , 0)
+            vmean[t] = ma.sum ( loc[t]*self.dz , 0)
             vol      = ma.sum (        self.dz , 0)
             vmean[t] = vmean[t]/vol
 
