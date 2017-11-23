@@ -10,9 +10,7 @@ import G3D_class
 
 class N3D(G3D_class.G3D): 
     '''This is a class for NEMO model outputs exploration. It is based on G3D class but overides specific methods (for z, lon, lat definitions)'''
-
 ######################################################################
-
     def __init__(self,infile):
         self.infile=infile
         #The diag filename can be used to store computed diagnostic
@@ -33,24 +31,19 @@ class N3D(G3D_class.G3D):
                 config = yaml.load(stream)
         except Exception:
             print("".join(("\n A file called local.yml should be present","'\n")))
-        
- 
         try:
             self.model    = config['MODEL'] 
         except :
             self.model    = 'GHER'
-
     # this should be read somewhere
         self.batfile      = config['BATFILE']
         self.verbose      = config['VERBOSE']
         self.figoutputdir = config['PLOTDIR']
-
         self.instance_bat()
         self.testtime()
 
 ######################################################################
 # VARIABLE : BAT
-
     def instance_bat(self):
         if os.path.isfile(self.batfile):
             print(self.batfile + ' -> OK')
@@ -58,10 +51,10 @@ class N3D(G3D_class.G3D):
             print(self.batfile + ' can not be found') 
 
         with Dataset(self.batfile,'r') as nc:
-            mbathy = nc.variables['mbathy'][:]     # 2D
+            mbathy = nc.variables['mbathy'][:]    # 2D
             print('mbathy shape') 
             print(mbathy.shape)
-            self.z  = nc.variables['gdept'][:]     # 3D
+            self.z = nc.variables['gdept'][:]     # 3D
             print('gdept shape')
             print(self.z.shape)
 
@@ -70,13 +63,14 @@ class N3D(G3D_class.G3D):
                 for j in range(mbathy.shape[1]):
                     self.bat[0,0,j,i]=self.z[0,mbathy[0,j,i],j,i]
 
+            self.bat= ma.masked_where(mbathy[None,:]==0,self.bat)
+
             self.dx= nc.variables['e1t'][:]
             self.dy= nc.variables['e2t'][:]
             
             self.landmask= nc.variables['tmask'][:] # 3D 
 ######################################################################
 # VARIABLE : Z
-
     def instance_z(self):
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
@@ -88,12 +82,10 @@ class N3D(G3D_class.G3D):
             self.dz  = nc.variables['e3t'][:]
 ######################################################################
 # VARIABLE : ZI
-            
     def instance_zi(self):
         # For now let's build a constant dz,
         with Dataset(self.batfile,'r') as nc:
             self.zi  = nc.variables['gdepw'][:]
-      
 ######################################################################
 # UTILITY : test z        
     def testz(self):
@@ -102,10 +94,8 @@ class N3D(G3D_class.G3D):
         except :
             print('dz not found -> loading')
             self.instance_z()
-            
-######################################################################
+#####################################################################
 # UTILITY : test variable
-            
     def testvar(self,varname,doload=True):
         try:
             exec('self.'+varname)
@@ -117,34 +107,35 @@ class N3D(G3D_class.G3D):
                 print ('Loading %s'%(varname) )
                 self.gload(varname)
                 isthere=True
+                exec('print("Mean of '+varname+' is %s"%(self.'+varname+'.mean()))')
+                exec('nt=len(self.'+varname+'.shape)')
+                if (nt==3):
+                    # Assuming it's the depth dimension missing
+                    exec('self.'+varname+'=self.'+varname+'[:,None,:,:]')
                 # NEMO NEEDS EXTRA MASKING
                 print('remasking ' +varname)
-                exec('self.'+varname+'=ma.masked_array(self.'+varname+')')
-                for t in range(len(self.time)):
-                    exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]], self.'+varname+'[t])')
-
-
+                exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
+                # This assumes that all variables comes with 4 dimension, eventually with only one level
+                exec('nt=self.'+varname+'.shape[0]')
+                for t in range(nt):
+                    exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')
         return(isthere)
-                
-            
 ######################################################################
 # UTILITY : test time
-            
     def testtime(self):
         try:
             self.time
         except:
             print('%s not found -> loading'%('time'))
-            self.gload('time_counter')
+            self.gload('time_counter') # In NEMO time_counter is the number of seconds since referene time 
             self.time=self.time_counter
             del self.time_counter
             with Dataset(self.infile,'r') as nc:
                 t0 = nc.variables['time_counter'].time_origin 
-            self.dates = [dt.datetime.strptime(t0,' %Y-%b-%d %H:%M:%S')+dt.timedelta(days=int(t)) for t in self.time]
-
+            print('Time Origin : %s'%(t0))    
+            self.dates = [dt.datetime.strptime(t0,' %Y-%b-%d %H:%M:%S')+dt.timedelta(seconds=int(t)) for t in self.time]
 ######################################################################
 # UTILITY : 
-            
     def instance_SAL(self,i=None,j=None, k=None):
 #        self.gload('vosaline',i,j,k)
         self.testvar('vosaline')
