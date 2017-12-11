@@ -362,7 +362,7 @@ class G3D(object):
         self.testvar(varname)
         self.testtime()
         
-        avg = ma.empty((self.time.shape[0],ztab.shape[0]-1))
+        avg = ma.empty((len(self.time),ztab.shape[0]-1))
         
         exec('loc=self.'+varname)
 
@@ -375,7 +375,7 @@ class G3D(object):
             for k in xrange(ztab.shape[0]-1):
                 print('%s / %s'%(k+1,ztab.shape[0]-1))
                 dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
-                for t in xrange(self.time.shape[0]):
+                for t in xrange(len(self.time)):
                     vol=ma.masked_where(loc[t].mask,dzloc*self.dy*self.dx)
                     bi=loc[t]*vol
                     avg[t,k]= ma.sum(bi)/ma.sum(vol)
