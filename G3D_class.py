@@ -232,12 +232,12 @@ class G3D(object):
         self.testvar(varname)
         self.testtime()
 
-        integrated=ma.empty(self.time.shape)
+        integrated=ma.empty(len(self.time))
         exec('loc=self.'+varname)
         print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
         if (len(self.dz.shape)==3)and(len(loc.shape)==4):
             print("4D")
-            for t in xrange(self.time.shape[0]):
+            for t in xrange(len(self.time)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
         # return should be 1D (time)    
@@ -251,7 +251,7 @@ class G3D(object):
         self.testz()
         self.testvar(varname)        
                         
-        avg=ma.empty(self.time.shape)
+        avg=ma.empty(len(self.time))
         exec('loc=self.'+varname+'.copy()')
         print('In avgptial \n dz: %s  \n Field: %s'%( len(self.dz.shape),len(loc.shape)))
 
@@ -265,11 +265,11 @@ class G3D(object):
                 print('Found Mask with ' + str(maskin.sum()) + ' masked points.')
                 if len(maskin.shape)==3:
                     print('2D mask .. OK')
-                    for t in xrange(self.time.shape[0]):
+                    for t in xrange(len(self.time)):
                         loc[t]=ma.masked_where(maskin,loc[t])
 
             # AVERAGING
-            for t in xrange(self.time.shape[0]):
+            for t in xrange(len(self.time)):
                 bi=loc[t]*self.dy*self.dx
                 vol=ma.masked_where(bi.mask,self.dy*self.dx*np.ones(bi.shape))
                 avg[t] = ma.sum(bi)/ma.sum(vol)
@@ -279,7 +279,7 @@ class G3D(object):
             if (maskin is not None):
                 print('Masking of 3D vars not implemented yet .. Complete G3D_class.py') 
             print("3D variable")
-            for t in xrange(self.time.shape[0]):
+            for t in xrange(len(self.time)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 vol=ma.masked_where(bi.mask,self.dz*self.dy*self.dx)
                 avg[t] = ma.sum(bi)/ma.sum(vol)
@@ -417,7 +417,7 @@ class G3D(object):
 
         hint=ma.empty( (loc.shape[0],loc.shape[1]) )
     
-        for t in xrange(self.time.shape[0]):
+        for t in xrange(len(self.time)):
             hint[t]=ma.sum(loc[t]*self.dz*self.dx*self.dy,(1,2))
 
         return hint
@@ -486,7 +486,7 @@ class G3D(object):
         exec('loc=self.'+varname)
         vint=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
 
-        for t in xrange(self.time.shape[0]):
+        for t in xrange(len(self.time)):
             vint[t]=ma.sum(loc[t]*self.dz,0)
         
         return vint
@@ -503,7 +503,7 @@ class G3D(object):
         exec('loc=self.'+varname)
         vmean=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
         print(vint.shape)
-        for t in xrange(self.time.shape[0]):
+        for t in xrange(len(self.time)):
             vmean[t] = ma.sum ( loc[t]*self.dz , 0)
             vol      = ma.sum (        self.dz , 0)
             vmean[t] = vmean[t]/vol
@@ -539,7 +539,7 @@ class G3D(object):
             # need to be computed only for one profile
             p  = gsw.p_from_z(self.z[:,j,i],tlat[:,j,i])
 #            self.DEN = ma.empty(self.SAL.shape)
-            for t in xrange(self.time.shape[0]):
+            for t in xrange(len(self.time)):
                 self.gload('SAL',i=i,j=j)
                 self.gload('TEM',i=i,j=j)
                 exec('SALloc=self.SALi'+str(i)+'j'+str(j))
@@ -597,7 +597,7 @@ class G3D(object):
 
             self.AVRDEN = np.tile(self.vertmean('DEN'),(1,31,1,1))
 
-            for t in xrange(self.time.shape[0]):
+            for t in xrange(len(self.time)):
                 self.PEAv[t] = 9.81 *self.z*(self.AVRDEN[t]-self.DEN[t])
 
             self.PEA = self.vertint(PEAv)
