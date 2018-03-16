@@ -334,11 +334,11 @@ class G3D(object):
 
     def maskvar(self,loc, maskin):
     
-        if (len(loc.shape)==4) and (len(maskin.shape)==2):
+        if (len(loc.shape)==4) and (len(maskin.squeeze().shape)==2):
             print('Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
             for t in xrange(loc.shape[0]):
                 for k in  xrange(loc.shape[1]):
-                    loc[t,k,:,:]=ma.masked_where(maskin,loc[t,k,:,:]) # ma.expand_dims(ma.expand_dims(maskin,0),0)
+                    loc[t,k,:,:]=ma.masked_where(maskin.squeeze(),loc[t,k,:,:]) # ma.expand_dims(ma.expand_dims(maskin,0),0)
         else:
             print('NOT Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
                 
