@@ -18,7 +18,7 @@ import G3D_class
 ztab=-1*np.concatenate([np.arange(0,200,5)])
 colormap = plt.cm.hsv
 firstyear=1
-lastyear =4
+lastyear =5
 
 # Compile the complite Age profile time series
 for yy in range(firstyear,lastyear+1):
