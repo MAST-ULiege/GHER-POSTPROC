@@ -12,10 +12,12 @@ import matplotlib.dates as mdates
 import datetime as dt
 import sys
 import os
-
+import cmocean 
 import G3D_class
+import calendar
+
 firstyear=1
-lastyear =4
+lastyear =5
 
 # Compile the complite Age profile time series
 for yy in range(firstyear,lastyear+1):
@@ -48,15 +50,30 @@ for yy in range(minyear,maxyear):
     loca     = bmaa[indx]
     
     # Maps of max bottom age
-    fig=plt.figure(figsize=(15,15))
-    ax=plt.subplot(1, 1, 1)
-    plt.contourf(G1.lon,G1.lat,loca.max(axis=0),cmap='RdPu', levels=np.linspace(0,500,50))
-    plt.colorbar()
-    fig.savefig(G1.figoutputdir+'BottomMaxAge'+str(yy)+'.png')
+    fig = plt.figure(figsize=(30,15))
+    ax  = plt.subplot(1, 2, 1)
+    mdd = plt.contourf(G1.lon[1:150],G1.lat,loca.max(axis=0)[:,1:150],cmap=cmocean.cm.deep, levels=np.linspace(0,500,20))
+    plt.colorbar(mdd)
+    plt.title('Max Age of Bottom Waters : ' + str(yy))
     
     # Maps of when max age occurs (days of the year) 
-    #juldofMaxAge = 
+    idxma = loca.argmax(0)
+    dayl  = [ i.timetuple().tm_yday for i in locdates ]
+    dayd  = dict(enumerate(dayl))
+    
+    b=ma.copy(idxma)
+    for old, new in dayd.items():
+        b[idxma == old] = new
 
+    ax=plt.subplot(1, 2, 2)
+    plt.pcolor(G1.lon[1:150],G1.lat,ma.masked_where(loca[0].mask,b)[:,1:150],cmap=cmocean.cm.phase, vmin=0, vmax=366)
+    clb=plt.colorbar(ticks=np.linspace(15,350,12).round())
+    clb.ax.set_yticklabels(calendar.month_abbr[1:13]) 
+    plt.title('Occurence')
+    fig.savefig(G1.figoutputdir+'BottomMaxAge'+str(yy)+'.png')
+    
+    
+    
 
 
 
