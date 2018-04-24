@@ -52,6 +52,7 @@ class G3D(object):
         self.hlim         = config['HLIM']
         self.verbose      = config['VERBOSE']
         self.figoutputdir = config['PLOTDIR']
+        self.resultdir    = config['RESULTDIR']
 
         self.instance_bat()
         self.testtime()
