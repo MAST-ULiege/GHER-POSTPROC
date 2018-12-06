@@ -6,15 +6,16 @@ import yaml
 import os.path
 import datetime as dt
 import cmocean
+import calendar
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
+#from mpl_toolkits.basemap import Basemap
 
 class G3D(object): 
     '''This is a class for model outputs exploration. It is based on GHER3D model outputs, but child classes are available for other models.'''
 
 ######################################################################
 
-    def __init__(self,infile):
+    def __init__(self,infile, YAML_FILE = 'local.yml'):
 
         self.infile=infile
 
@@ -30,7 +31,7 @@ class G3D(object):
             self.found=False
             return
         try:
-            YAML_FILE = 'local.yml'
+#            YAML_FILE = 'local.yml'
             print("\nLaunching with YAML file: %s" % YAML_FILE)
             # Read yaml configuration file
             with open(YAML_FILE, 'r') as stream:
@@ -38,7 +39,6 @@ class G3D(object):
         except Exception:
             print("".join(("\n A file called local.yml should be present","'\n")))
         
-
         try:
             self.model    = config['MODEL'] 
         except :
@@ -60,6 +60,10 @@ class G3D(object):
         self.instance_bat()
         self.testtime()
 
+        self.ksurface     = len(self.sigII)+len(self.sigI)-2-1
+        self.kbottom      = ma.where(self.bat>self.hlim,0,len(self.sigII)-1)
+        
+
 ######################################################################
 # VARIABLE : BAT
 
@@ -71,6 +75,7 @@ class G3D(object):
 
         with Dataset(self.batfile,'r') as nc:
             self.bat = nc.variables['bat'][:]
+        self.bat=self.bat[None,:,:,:]
             
 ######################################################################
 # VARIABLE : Z
@@ -78,12 +83,8 @@ class G3D(object):
     def instance_z(self):
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
-        
-        if self.model is 'NEMO':
-            self.z   = nc.variables['deptht'][:]
-
         with Dataset(self.infile,'r') as nc:
-            self.z   = nc.variables['depth'][1] # Let it be 3D for now           
+            self.z   = nc.variables['depth'][1][None,:,:,:] # Make it 4D, even if we don't use elevation for now           
             self.lon = nc.variables['longitude'][:]
             self.lat = nc.variables['latitude'][:]
 
@@ -93,11 +94,11 @@ class G3D(object):
     def instance_zi(self):
         # For now let's build a constant dz,
         # dynamic dz considering ETA can be done later
-        self.zi=ma.zeros(self.z.shape+np.array([1,0,0]))
+        self.zi=ma.zeros(self.z.shape+np.array([0,1,0,0]))
         for k in xrange(0,12):
-            self.zi[k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
+            self.zi[0,k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
         for k in xrange(12,self.zi.shape[0]):
-            self.zi[k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
+            self.zi[0,k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
             
 ######################################################################
 # VARIABLE : DZ
@@ -105,60 +106,61 @@ class G3D(object):
     def instance_dz(self):
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
-        self.dz = ma.abs(self.zi[1:]-self.zi[:-1]) 
-
-######################################################################
-# UTILITY : LOAD
-        
-#    def gload(self,varname):
-#        with Dataset(self.infile,'r') as nc:
-#            try:
-#                exec('self.'+varname+ '= nc.variables[''varname''][:]')
-#                print( 'Just loaded %s'%(varname))
-#            except: 
-#                print( '%s not found in %s'%(varname,self.infile))
-#                print( '-> try to compute')
-#             #   try:
-#                exec('self.instance_'+varname+'()')
-#               # except:
-#               #     print('self.instance_'+varname+' is not defined.')
+        self.dz = ma.abs(self.zi[0,1:]-self.zi[0,:-1]) 
 
 ######################################################################
 # UTILITY : LOAD LOCAL 
-        
-    def gload(self,varname,ti=None,k=None,i=None,j=None):
+# The idea is that ouput always 4 dimension [time,depth,lat,lon], even if some are singleton.
+# TODO simplify the code to avoid copying lines uselessly
+# TODO 
+
+    def gload(self,varname,k=None,i=None,j=None):
         try:
             # looking for the variable in the original file
             with Dataset(self.infile,'r') as nc:
-                if (ti is None) and (k is None) and (i is None) and (j is None):
+                if  (k is None) and (i is None) and (j is None):
                     exec('self.'+varname+ '= nc.variables[varname][:]')
                     print( 'Just loaded '+ (varname) + ' for full')
-                elif (ti is None) and (k is None) and (i is not None) and (j is not None):
+                elif (k is None) and (i is not None) and (j is not None):
                     print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                     exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
                     print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
-                elif (ti is None) and (k is not None) and (i is None) and (j is None):
-                    exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
-                    print( 'Just loaded '+ (varname) +' for ki:'+str(k))
+                elif (k is not None) and (i is None) and (j is None):
+                    if (k=="surface"):
+                        exec('self.'+varname+'ksurface= nc.variables[varname][:,self.ksurface]')
+                        exec('self.'+varname+'ksurface=self.'+varname+'ksurface[:,None,:,:]')
+                    elif (k=='bottom'):
+#                        exec('self.'+varname+'kbottom=ma.empty([len(self.time),1,self.bat.shape[2], self.bat.shape[3]])')
+                        exec('self.'+varname+ '= nc.variables[varname][:]')
+                        exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                        for i in range(self.bat.shape[2]):
+                            for j in range(self.bat.shape[3]):
+                                if (not ma.is_masked(self.kbottom[0,0,i,j])):
+                                    exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
+                                    
+                    else:                        
+                        exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
+                        exec('self.'+varname+'k'+str(k)+'=self.'+varname+'k'+str(k)+'[:,None,:,:]')
+                    print( 'Just loaded '+ (varname) +' for k:'+str(k))
                 else:
-                    print(' Stange case encountered in  G3D_class.py : def gload ')
+                    print(' Strange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
                     
         except: 
             try:
                 # looking for the variable in the diag file (created by function gstore)
                 with Dataset(self.diagfile,'r') as nc:
-                    if (ti is None) and (k is None) and (i is None) and (j is None):
+                    if (k is None) and (i is None) and (j is None):
                         exec('self.'+varname+ '= nc.variables[varname][:]')
                         print( 'Just loaded '+ (varname) + ' for full')
-                    elif (ti is None) and (k is None) and (i is not None) and (j is not None):
+                    elif (k is None) and (i is not None) and (j is not None):
                         print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                         exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
                         print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
-                    elif (ti is None) and (k is not None) and (i is None) and (j is None):
+                    elif (k is not None) and (i is None) and (j is None):
                         exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
                         print( 'Just loaded '+ (varname) +' for ki:'+str(k))
                     else:
-                        print(' Stange case encountered in  G3D_class.py : def gload ')
+                        print(' Stange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
 
 
             except Exception as e: 
@@ -303,7 +305,7 @@ class G3D(object):
         self.testz()
         self.testvar(varname)        
                         
-        avg=ma.empty(len(self.time))
+        avg=ma.empty(len(self.dates))
         exec('loc=self.'+varname+'.copy()')
         print('In avgptial \n dz: %s  \n Field: %s'%( len(self.dz.shape),len(loc.shape)))
 
@@ -315,10 +317,16 @@ class G3D(object):
             # MASKING
             if (maskin is not None):
                 print('Found Mask with ' + str(maskin.sum()) + ' masked points.')
-                if len(maskin.shape)==3:
-                    print('2D mask .. OK')
+                if len(maskin.squeeze().shape)==2:
+                    print('static 2D mask .. OK')
                     for t in xrange(len(self.time)):
-                        loc[t]=ma.masked_where(maskin,loc[t])
+                        loc[t]=ma.masked_where(maskin.squeeze()[None,:,:],loc[t])
+                elif ((len(maskin.squeeze().shape)==3) and (maskin.shape[0]==self.time.shape)):
+                    print('dynamic 2D mask .. OK')
+                    for t in xrange(len(self.time)):
+                        loc[t]=ma.masked_where(maskin.squeeze()[t],loc[t])
+                else:
+                    print('Mask dimension not understood: %s'%(maskin.shape) )
 
             # AVERAGING
             for t in xrange(len(self.time)):
@@ -355,16 +363,21 @@ class G3D(object):
 ######################################################################
 # UTILITY : test variable
             
-    def testvar(self,varname,doload=True):
+    def testvar(self,varname,doload=True,i=None,j=None, k=None):
         try:
-            exec('self.'+varname)
+            if (i is None) and (j is None) and (k is None):
+                exec('self.'+varname)
+            elif (k is not None):
+                exec('self.'+varname+'k'+str(k))
+            elif (i is not None) and (j is not None):
+                exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
             print('%s not found '%(varname))
             isthere=False
             if doload:
                 print ('Loading %s'%(varname) )
-                self.gload(varname)
+                self.gload(varname,i=i,j=j,k=k)
                 isthere=True
 
         return(isthere)
@@ -422,8 +435,8 @@ class G3D(object):
             loc = self.maskvar(loc,maskin)
        
         if (len(self.dz.shape)==3)and(len(loc.shape)==4):            
-            gridZU = self.zi[1:]
-            gridZD = self.zi[:-1]
+            gridZU = self.zi[0,1:]
+            gridZD = self.zi[0,:-1]
             for k in xrange(ztab.shape[0]-1):
                 print('%s / %s'%(k+1,ztab.shape[0]-1))
                 dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
@@ -464,8 +477,8 @@ class G3D(object):
             loc = self.maskvar(loc,maskin)
        
         if (len(self.dz.shape)==3)and(len(loc.shape)==4):            
-            gridZU = self.zi[1:]
-            gridZD = self.zi[:-1]
+            gridZU = self.zi[0,1:]
+            gridZD = self.zi[0,:-1]
             for k in xrange(ztab.shape[0]-1):
                 print('%s / %s'%(k+1,ztab.shape[0]-1))
                 dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
@@ -555,7 +568,7 @@ class G3D(object):
         self.testtime()
         i,j=self.test_coord(c1,c2)
 
-        zforplot=self.z[:,j,i]
+        zforplot=self.z[0,:,j,i]
         if isvar:
             # for some reason the 4d variable is already loaded in memory
             exec('loc=self.'+varname)
@@ -579,7 +592,7 @@ class G3D(object):
     def valatxyz(self,varname,c1,c2,c3):
 
         self.testz()
-        isvar=self.testvar(varname,False)
+        isvar=self.testvar(varname,doload=False)
         self.testtime()
         i,j=self.test_coord(c1,c2)
 
@@ -703,26 +716,64 @@ class G3D(object):
 ############################################################################
 # PLOTS : Plot Map 
 
-    def mapClimTimeMean(self, varname):
+    def mapMonthlyClim(self, varname,title=None,cmapname='deep',Clim=None,figsuffix='', batlines=True, subdomain=None):
+
         exec('loc=self.clim_'+varname)
-        
-        fig = plt.figure(figsize=(8,8))
-        ax = fig.add_axes([0.1,0.1,0.8,0.8])
-        
-        m = Basemap(llcrnrlat=self.lat[0],\
-                    urcrnrlat=self.lat[-1],\
-                    llcrnrlon=self.lon[0],\
-                    urcrnrlon=self.lon[-1],\
-                    resolution='l')
-                    
-        m.drawcoastlines()
-        llon,llat=np.meshgrid(G.lon,G.lat)
-        x, y = m(llon,llat)        
-                
-        m.contourf(x,y,G.clim_T1age[:,11].mean(axis=0), np.linspace(0,600,10),cmap=cmocean.cm.deep, extend="both")
-        plt.title()
-        m.colorbar()#ticks=np.linspace(Tmin,Tmax,num=11)) matplotlib.rcParams.update({'font.size': 18})
-        fig.savefig(figout)
+        loclon=self.lon
+        loclat=self.lat
+        locbat=self.bat[0,0]
+
+        if (subdomain=="NWS"): 
+            limlon,limlat = self.test_coord(33.5,43.0)
+            loc    = loc[:,:,limlat:,:limlon]
+            loclat = self.lat[limlat:]
+            loclon = self.lon[:limlon]
+            locbat = locbat[limlat:,:limlon]
+
+        if (loc.shape[1]>1):
+            print('!! use mapMonthlyClim for 2D clims only !!')
+            print('!! proceeding now for the surface layer ''')
+            loc=loc[:,self.ksurface][:,None,:,:]
+
+        if (title==None): title=varname
+
+        if Clim==None : Clim=[loc.min(),loc.max()]
+
+        exec('cmap=cmocean.cm.'+cmapname)
+
+        fig, aaxes = plt.subplots(4,3,figsize=(10, 12))
+
+        parallels = np.arange(np.floor(min(loclat)),np.ceil(max(loclat)),1.)
+        meridians = np.arange(np.floor(min(loclon)),np.ceil(max(loclon)),1.)
+        llon,llat = np.meshgrid(loclon,loclat)
+
+        for monthi in range(1,12+1):
+            indx = [i for i,x in enumerate(self.climdates) if (x.month==monthi)]
+            
+            try: # if BaseMap is installed and OK
+                m    = Basemap(llcrnrlat=G.lat[0],urcrnrlat=G.lat[-1],llcrnrlon=G.lon[0],urcrnrlon=G.lon[140],resolution='i',ax=aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ])
+                xx, yy = m(llon,llat)
+                m.drawcoastlines()
+                m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
+                m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
+                cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend="both")
+               
+                m.contour(xx,yy,G.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
+            except:
+                cs = aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
+                                                                                  levels= np.linspace(Clim[0],Clim[1],20),\
+                                                                                  cmap=cmap, extend="both")
+                if batlines:
+                    aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contour(loclon, loclat,locbat,levels=[40,80,120], colors='k',linestyles='dashed')
+
+            aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].set_title(calendar.month_name[monthi])
+
+        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.1, right=0.95, left=0.05, top=0.95)
+        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],10),cax=cbar_ax, orientation="horizontal")
+        cbar.set_label(varname)
+
+        fig.savefig(self.figoutputdir+'MonthlyClim_'+varname+figsuffix+'.png')
 
         
 ############################################################################
@@ -781,9 +832,9 @@ class G3D(object):
     def instance_DEN(self,i=None,j=None,k=None):
 
         self.testz()
-        tlat=np.tile(self.lat, (self.z.shape[0],self.z.shape[2],1))
+        tlat=np.tile(self.lat, (self.z.shape[1],self.z.shape[3],1))
         tlat=np.transpose(tlat,(0,2,1))
-        tlon=np.tile(self.lon, (self.z.shape[0], self.z.shape[1],1))
+        tlon=np.tile(self.lon, (self.z.shape[1], self.z.shape[2],1))
 
         if (i is None) and (j is None) and (k is None):
             p  = gsw.p_from_z(self.z,tlat)
@@ -802,7 +853,7 @@ class G3D(object):
 
         elif (i is not None) and (j is not None) and (k is None):
             # need to be computed only for one profile
-            p  = gsw.p_from_z(self.z[:,j,i],tlat[:,j,i])
+            p  = gsw.p_from_z(self.z[0,:,j,i],tlat[:,j,i])
             print("p.shape")
             print(p.shape)
 #            self.DEN = ma.empty(self.SAL.shape)
@@ -826,44 +877,48 @@ class G3D(object):
                 self.gstore('DEN')
 
 ############################################################################
-# UTILITY : unload to free some memory
+# VARIABLE Sea Bottom Salinity
 
+    def instance_SBS(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.gload('SAL',k='bottom')
+            self.SBS=self.SALkbottom
+            del self.SALkbottom
+        else:
+            print(' Case not ready, please code .. ')
+
+############################################################################
+# VARIABLE Sea Bottom Temperature
+                                                                                                                                                 
+    def instance_SBT(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.gload('TEM',k='bottom')
+            self.SBT=self.TEMkbottom
+            del self.TEMkbottom
+        else:
+            print(' Case not ready, please code .. ')
 
 ############################################################################
 # VARIABLE SSS
 
     def instance_SSS(self, i=None,j=None,k=None):
         if (i is None) and (j is None) :
-            self.gload('SAL',k=30) 
-            self.SSS=self.SALk30
-            del self.SALk30
-            self.SSS=ma.expand_dims(self.SSS,1)
-            
+            self.gload('SAL',k='surface') 
+            self.SSS=self.SALksurface
+            del self.SALksurface            
         else:
             print(' Case not ready, please code .. ')
-
-#        self.SSSinfo.units='p.s.u.'
-#        self.SSSinfo.longname='Surface Salinity'
-#        self.SSSinfo.dims='2D'
 
 ############################################################################
 # VARIABLE SST
 
     def instance_SST(self, i=None,j=None, k=None):
         if (i is None) and (j is None) :
-            self.gload('TEM',k=30) 
-            self.SST=self.TEMk30
-            del self.TEMk30
-            self.SST=ma.expand_dims(self.SST,1)
-            
+            self.gload('TEM',k='surface') 
+            self.SST=self.TEMksurface
+            del self.TEMksurface            
         else:
             print(' Case not ready, please code .. ')
-
-#        self.SSSinfo.units='C'
-#        self.SSSinfo.longname='Surface Temperature'
-#        self.SSSinfo.dims='2D'
-
-
 
 ############################################################################                                                                                                                                       # VARIABLE CCCn
 
@@ -876,7 +931,6 @@ class G3D(object):
             self.CCCn = ma.expand_dims(self.CCCn,1)
         else:
             print(' Case not ready, please code .. ')
-
 
 ############################################################################
 # VARIABLE PEA : Potential Energy Anomaly
@@ -902,23 +956,38 @@ class G3D(object):
 ############################################################################                                                                                                             
 # VARIABLE : Mixed layer depth  
 #
-# NOT READY !!! 
-#
-#        def instance_MLD(t):
-#            #  Might probably be ipmroved a lot.                                                                                                                                                                  #             #  Currently, there are two 1D interpolation by i,j
-#            Dloc=DEN[t]
-#            zloc=z[t]
-#            MLDloc=Dloc[30].copy()*0 # for init                                                                                                             
-#            for i in xrange(Dloc.shape[1]):
-#                for j in xrange(Dloc.shape[2]):
-#                    if ma.is_masked(MLDloc[i,j]):
-#                        continue
-#                    f = interp1d(zloc[:,i,j], Dloc[:,i,j])
-#                    d3=f(-3)
-#                    f = interp1d(Dloc[:,i,j], zloc[:,i,j])
-#            MLDloc[i,j]=f(d3+deltasig)#
-#
-#            return MLDloc
+    def instance_MLD(self, i=None,j=None):
+         #  Might probably be ipmroved a lot.                                                                                                                                                                  #            #  Currently, there are two 1D interpolation by i,j
+        self.testvar('DEN',i=i,j=j)
+        self.testvar('DENat3',i=i,j=j)
+
+        self.MLD = ma.ones(self.DEN[:,self.fsurface])[:,None,:,:]*3
+
+        for t in range(len(self.dates)):        
+            for i in xrange(Dloc.shape[1]):
+                for j in xrange(Dloc.shape[2]):
+                    if ma.is_masked(MLDloc[i,j]):
+                        continue
+                    f = interp1d(zloc[:,i,j], Dloc[:,i,j])
+                    d3=f(-3)
+                    f = interp1d(Dloc[:,i,j], zloc[:,i,j])
+
+        MLDloc[i,j]=f(d3+deltasig)
+
+        return MLDloc
+
+###########################################################################
+
+    def instance_DENat3(self, i=None,j=None,k=None):
+        self.testvar('DEN',i=i,j=j)
+        self.DENat3=self.DEN[:,self.ksurface].copy()[:,None,:,:]
+        for t in range(len(self.dates)):
+            for i in range(self.bat.shape[2]):
+                for j in range(self.bat.shape[3]):
+                    if ma.is_masked(self.DENat3[t,0,i,j]):
+                        continue
+                    self.DENat3[t,0,i,j]=np.interp(3,self.z[0,:,i,j],self.DEN[t,:,i,j])
+
 
 
 ############################################################################   
