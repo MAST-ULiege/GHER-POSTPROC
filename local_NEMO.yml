@@ -1,0 +1,6 @@
+# See <http://yaml.org/> and <http://pyyaml.org/> for rules on editing this file.
+
+MODEL   : NEMO
+BATFILE : './OutNEMO/mesh_mask.nc_31levels'
+PLOTDIR : './Plots/'
+VERBOSE : True
