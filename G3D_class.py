@@ -8,6 +8,7 @@ import datetime as dt
 import cmocean
 import calendar
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 #from mpl_toolkits.basemap import Basemap
 
 class G3D(object): 
@@ -62,7 +63,36 @@ class G3D(object):
 
         self.ksurface     = len(self.sigII)+len(self.sigI)-2-1
         self.kbottom      = ma.where(self.bat>self.hlim,0,len(self.sigII)-1)
-        
+
+    # instantiate the dictionnary with model parameters
+#        try: 
+        self.initparams(config['PARAMFILE'])
+
+ #       except:
+  #      print('I did not found any model paramter file')
+
+######################################################################
+# UTILITY : Instantiate a dictionary with model parameter values. 
+
+    def initparams(self,paramfile):
+            # first the param file (default values)
+        d={}
+        fp = open(paramfile, 'r') 
+        line='a'
+        while line:
+            line = fp.readline()
+#            print(line)
+            if '::' in line.split('!')[0]:
+                paramline=line.split('!')[0].split('::')[1]
+                p,v=paramline.split('=')
+                try: # deals with all numeric values
+                    daytosecond=86400.0
+                    exec('v='+v)
+                    d[p.strip()]=float(v)
+                except: # probably a useless boolean or string, so I don't go further at the moment
+                    p,v=paramline.split('=')
+                    d[p.strip()]=v
+        self.paramd=d
 
 ######################################################################
 # VARIABLE : BAT
@@ -294,7 +324,7 @@ class G3D(object):
 # PROCESS : TIME AVERAGE
     def avgtime (self, varname, maskin=None):
         self.testvar(varname)
-        avg=self.varname.mean(axis=0)
+        exec('avg=self.'+varname+'.mean(axis=0)')
         return(avg)
         
 ######################################################################
@@ -716,29 +746,24 @@ class G3D(object):
 ############################################################################
 # PLOTS : Plot Map 
 
-    def mapMonthlyClim(self, varname,title=None,cmapname='deep',Clim=None,figsuffix='', batlines=True, subdomain=None):
+    def mapMonthlyClim(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None):
 
         exec('loc=self.clim_'+varname)
         loclon=self.lon
         loclat=self.lat
         locbat=self.bat[0,0]
-
         if (subdomain=="NWS"): 
             limlon,limlat = self.test_coord(33.5,43.0)
             loc    = loc[:,:,limlat:,:limlon]
             loclat = self.lat[limlat:]
             loclon = self.lon[:limlon]
             locbat = locbat[limlat:,:limlon]
-
         if (loc.shape[1]>1):
             print('!! use mapMonthlyClim for 2D clims only !!')
             print('!! proceeding now for the surface layer ''')
             loc=loc[:,self.ksurface][:,None,:,:]
-
         if (title==None): title=varname
-
         if Clim==None : Clim=[loc.min(),loc.max()]
-
         exec('cmap=cmocean.cm.'+cmapname)
 
         fig, aaxes = plt.subplots(4,3,figsize=(10, 12))
@@ -751,14 +776,15 @@ class G3D(object):
             indx = [i for i,x in enumerate(self.climdates) if (x.month==monthi)]
             
             try: # if BaseMap is installed and OK
-                m    = Basemap(llcrnrlat=G.lat[0],urcrnrlat=G.lat[-1],llcrnrlon=G.lon[0],urcrnrlon=G.lon[140],resolution='i',ax=aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ])
+                m    = Basemap(llcrnrlat=loclat[0],urcrnrlat=loclat[-1],llcrnrlon=loclon[0],urcrnrlon=loclon[-1],\
+                                   resolution='i',ax=aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ])
                 xx, yy = m(llon,llat)
                 m.drawcoastlines()
                 m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
                 m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
                 cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend="both")
-               
-                m.contour(xx,yy,G.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
+                if batlines: 
+                    m.contour(xx,yy,G.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
             except:
                 cs = aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
                                                                                   levels= np.linspace(Clim[0],Clim[1],20),\
@@ -779,52 +805,96 @@ class G3D(object):
 ############################################################################
 # PLOTS : Plot Map 
 
-    def map2D(self, varname,cmapname="deep", region=None, figout='Map.png', title=None, Clim=None, scatmat=None):
+    def map2D(self, varname,cmapname="haline", subdomain=None, figout=None, title=None, Clim=None, scatmat=None,extend='both', batlines=True):
         self.testz()
         exec('loc=self.'+varname)
+        loclon=self.lon
+        loclat=self.lat
+        locbat=self.bat[0,0]
+        if (subdomain=="NWS"):
+            limlon,limlat = self.test_coord(33.5,43.0)
+            loc    = loc[:,:,limlat:,:limlon]
+            loclat = self.lat[limlat:]
+            loclon = self.lon[:limlon]
+            locbat = locbat[limlat:,:limlon]
         exec('cmap=cmocean.cm.'+cmapname)
-        
-        fig = plt.figure(figsize=(5,5))
+        if figout==None:
+            figout='MAP_'+varname
+        if (title==None): title=varname
+        if Clim==None : Clim=[loc.min(),loc.max()]
+
+        parallels = np.arange(40.,48.,1.) # TODO: generalize
+        meridians = np.arange(20.,43.,1.)
+        llon,llat=np.meshgrid(loclon,loclat)
+
+        fig = plt.figure(figsize=(10,8))
         ax = fig.add_axes([0.1,0.1,0.8,0.8])
 
-        if region==None:
-            i1=0; i2=-1; j1=0; j2=-1
-        elif region == 'Shelf':
-            i1=0; i2=150; j1=35; j2=-1            
-            
-        if (title==None): title=varname
-            
-        if Clim==None : Clim=[loc.min(),loc.max()]
-        m = Basemap(llcrnrlat=self.lat[j1],\
-                    urcrnrlat=self.lat[j2],\
-                    llcrnrlon=self.lon[i1],\
-                    urcrnrlon=self.lon[i2],\
-                    resolution='l')
-                    
-        m.drawcoastlines()
-        parallels = np.arange(40.,48.,1.)
-        m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
-        meridians = np.arange(20.,43.,1.)
-        m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
-
-        llon,llat=np.meshgrid(self.lon[i1:i2],self.lat[j1:j2])
-        x, y = m(llon,llat)        
-        
-       # print('x.shape %s'%(x.shape))
-       # print('y.shape %s'%(y.shape))
-       # print('llon.shape %s'%(llon.shape))
-       # print('llat.shape %s'%(llon.shape))
-                
-        cs=m.contourf(x,y,loc.squeeze()[j1:j2,i1:i2], np.linspace(Clim[0],Clim[1],100),cmap=cmap, extend="both")
-        cbar = m.colorbar(cs,location='bottom',pad="5%",ticks=np.linspace(Clim[0],Clim[1],10))  #          matplotlib.rcParams.update({'font.size': 18})
+        try: # if BaseMap is installed and OK
+            m = Basemap(llcrnrlat=loclat[0],\
+                            urcrnrlat=loclat[-1],\
+                            llcrnrlon=loclon[0],\
+                            urcrnrlon=loclon[-1],\
+                            resolution='l')
+            m.drawcoastlines()
+            m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
+            m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
+            x, y = m(llon,llat)        
+            cs=m.contourf(x,y,loc.squeeze(), np.linspace(Clim[0],Clim[1],100),cmap=cmap, extend="both")
+            if batlines:
+                m.contour(x,y,self.bat[0,j1:j2,i1:i2],levels=[40,80,120], colors='k',linestyles='dashed')
+        except:
+            cs = ax.contourf(loclon, loclat,loc.squeeze(),levels= np.linspace(Clim[0],Clim[1],20),cmap=cmap, extend=extend)
+            if batlines:
+                ax.contour(loclon, loclat,locbat,levels=[40,80,120,500,1000], colors='k',linestyles='dashed')
+        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+#        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],10),cax=cbar_ax, orientation="horizontal")
+        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal") 
         cbar.set_label(title)
         if (scatmat!=None):
-            m.scatter(scatmat[:,1],scatmat[:,0],50,scatmat[:,2],edgecolors='black',cmap=cmap,vmin=Clim[0],vmax=Clim[1])
-        m.contour(x,y,self.bat[0,j1:j2,i1:i2],levels=[40,80,120], colors='k',linestyles='dashed')
+            try:
+                m.scatter(scatmat[:,1],scatmat[:,0],50,scatmat[:,2],edgecolors='black',cmap=cmap,vmin=Clim[0],vmax=Clim[1])
+            except:
+                ax.scatter(scatmat[:,1],scatmat[:,0],50,scatmat[:,2],edgecolors='black',cmap=cmap,vmin=Clim[0],vmax=Clim[1])
         
         #plt.title(title)
         #m.colorbar()
         fig.savefig(figout)
+        fig.savefig(self.figoutputdir+figout+'.png')
+
+############################################################################
+# PLOTS : Plot Vertical Profile
+
+    def plotprofile (self, varname, z=None,cmapname="haline", figout=None, title=None, Clim=None, zlim=None):
+        if figout==None:
+            figout=varname
+        exec('loc=self.'+varname)
+        if z==None:
+            z=range(loc.shape[1])
+        if zlim!=None:
+            zimin=abs(z-zlim[0]).argmin()
+            zimax=abs(z-zlim[1]).argmin()
+            loc=loc[:,min(zimin,zimax):max(zimin,zimax)]
+            z=z[min(zimin,zimax):max(zimin,zimax)]
+        if Clim==None: 
+            Clim=[loc.min(),loc.max()]
+        exec('cmap=cmocean.cm.'+cmapname)
+
+        print(loc.shape)
+#        print(z.shape)
+
+        locator = mdates.AutoDateLocator()
+        formator = mdates.AutoDateFormatter(locator)
+        
+        fig=plt.figure(figsize=(15, 8))
+        ax=plt.subplot(1, 1, 1)
+        ax.xaxis_date()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formator)
+        cs=plt.contourf(self.dates, z, loc.transpose(), np.linspace(Clim[0],Clim[1],20), extend="max", cmap=cmap )
+        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal")
+        fig.savefig(self.figoutputdir+figout+'.png')
 
 ############################################################################
 # VARIABLE : Density
@@ -898,6 +968,17 @@ class G3D(object):
         else:
             print(' Case not ready, please code .. ')
 
+
+############################################################################                                                                                                      
+# VARIABLE Sea Bottom Oxygen
+    def instance_O2bottom(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.gload('DOX',k='bottom')
+            self.O2bottom=self.DOXkbottom
+            del self.DOXkbottom
+        else:
+            print(' Case not ready, please code .. ')
+
 ############################################################################
 # VARIABLE SSS
 
@@ -956,12 +1037,12 @@ class G3D(object):
 ############################################################################                                                                                                             
 # VARIABLE : Mixed layer depth  
 #
-    def instance_MLD(self, i=None,j=None):
+    def instance_MLD(self, i=None,j=None,k=None):
          #  Might probably be ipmroved a lot.                                                                                                                                                                  #            #  Currently, there are two 1D interpolation by i,j
         self.testvar('DEN',i=i,j=j)
         self.testvar('DENat3',i=i,j=j)
 
-        self.MLD = ma.ones(self.DEN[:,self.fsurface])[:,None,:,:]*3
+        self.MLD = ma.ones(self.DEN[:,self.ksurface])[:,None,:,:]*3
 
         for t in range(len(self.dates)):        
             for i in xrange(Dloc.shape[1]):
@@ -1063,7 +1144,105 @@ class G3D(object):
             self.gload('DOX',i=i,j=j)
             self.gload('O2sat',i=i,j=j)
             exec('self.pO2sati'+str(i)+'j'+str(j)+'=self.DOXi'+str(i)+'j'+str(j)+'/self.O2sati'+str(i)+'j'+str(j)+'*100')
+
+############################################################################
+# VARIABLE : totN, Total Nitrogen
+    def instance_totN(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('Nphyto')
+            self.testvar('Nzoo')
+            self.testvar('Ngel')
+            self.testvar('Nbac')
+            self.testvar('Ndis')
+            self.testvar('Norg')
+            self.totN=self.Nphyto+self.Nzoo+self.Ngel+self.Nbac+self.Ndis+self.Norg
+        else:
+            print('NEED TO BE COMPLETED : instance_totN')
+
+############################################################################
+# VARIABLE : Nphyto, Nitrogen in phyto form
+
+    def instance_Nphyto(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('NDI')
+            self.testvar('NEM')
+            self.testvar('NFL')
+            self.Nphyto = self.NDI+self.NEM+self.NFL
+#            del self.NDI, self.NEM, self.NFL
+        else:
+            print('NEED TO BE COMPLETED : instance_Nphyto')
+
+############################################################################ 
+# VARIABLE : Nzoo, Nitrogen in zoo form
+
+    def instance_Nzoo(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('MES')
+            self.testvar('MIC')
+            self.Nzoo = self.MES*self.paramd['NCrMesoZoo']+self.MIC*self.paramd['NCrMicroZoo']
+#            del self.MES, self.MIC
+        else:
+            print('NEED TO BE COMPLETED : instance_Nzoo')
+
+############################################################################ 
+# VARIABLE : Ngel, Nitrogen in gel form
+
+    def instance_Ngel(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('NOC')
+            self.testvar('GEL')
+            self.Ngel = self.GEL*self.paramd['NCrGelatinous']+self.NOC*self.paramd['NCrNoctiluca']
+#            del self.GEL, self.NOC
+        else:
+            print('NEED TO BE COMPLETED : instance_Ngel')
+
+############################################################################
+# VARIABLE : Ndis, Nitrogen in dissolved inorganic form
+
+    def instance_Ndis(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('NOS')
+            self.testvar('NHS')
+            self.Ndis = self.NHS+self.NOS
+#            del self.NDI, self.NEM, self.NFL 
+        else:
+            print('NEED TO BE COMPLETED : instance_Ndis')
+
+############################################################################
+# VARIABLE : Norg, Nitrogen in detritic organic form
+
+    def instance_Norg(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('DNL')
+            self.testvar('DNS')
+            self.testvar('PON')
+            self.Norg = self.DNS+self.DNL+self.PON
+#            del self.DNS, self.DNL, self.PON
+        else:
+            print('NEED TO BE COMPLETED : instance_Norg')
+
+############################################################################
+# VARIABLE : Ns, Nitrogen in dissolved inorganic form
+
+    def instance_Ndis(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('NOS')
+            self.testvar('NHS')
+            self.Ndis = self.NHS+self.NOS
+#            del self.NDI, self.NEM, self.NFL 
+        else:
+            print('NEED TO BE COMPLETED : instance_Ndis')
             
+############################################################################ 
+# VARIABLE : Nbac, Nitrogen in bacteria form
+
+    def instance_Nbac(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('BAC')
+            self.Nbac = self.BAC*self.paramd['NCrBac']
+        else:
+            print('NEED TO BE COMPLETED : instance_Ndis')
+
 #############################################################################
 # VARIABLE Consecutive days below given concentration - [d]
 # I can only code the very specific case I need right now...
@@ -1095,7 +1274,7 @@ class G3D(object):
 
     def instance_H120(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
-            self.testvar('DOXk11')
+            self.testvar('DOXk11') # TODO : replace with O2bottom
             botDOX=self.DOXk11
             loc=np.zeros_like(botDOX)
 #            for i in botDOX.shape[2]:
@@ -1132,3 +1311,17 @@ class G3D(object):
                         loc[di]=loc[di-1]+1
             exec('self.H120i'+str(i)+'j'+str(j)+'=loc[:,None]') 
             print('done')           
+
+############################################################################ 
+# VARIABLE : Ns, Nitrogen in dissolved inorganic form                     
+
+    def instance_N2loss(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('AMANOX')
+            self.testvar('DENITRIFICATION')
+            self.testvar('OXIDATIONBYNITRATE')
+            self.N2loss = self.AMANOX+self.DENITRIFICATION+self.OXIDATIONBYNITRATE
+        else:
+            print('NEED TO BE COMPLETED : instance_N2loss')
+
+

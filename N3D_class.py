@@ -42,6 +42,30 @@ class N3D(G3D_class.G3D):
         self.instance_bat()
         self.testtime()
 
+    # instantiate the dictionnary with model parameters
+        self.initparams(config['PARAMFILE'])
+    # needs an update based on namelist (model specific)
+        self.updateparams(config['CONFIGFILE'])
+
+###################################################################### 
+
+######################################################################                                                                                                                                             
+# UTILITY : update param dictionnary with run-specific values                                                                                                                                                  
+    def updateparams(self,f):
+        fp = open(f, 'r')
+        line='a'
+        while 'namtrc_bamhbi' not in line: # skip all lines before relevant ones
+            line = fp.readline()
+        pline='='
+        while pline:
+            pline=fp.readline().split('!')[0]
+            if '=' not in pline:
+                break
+            p,v=pline.split('=')
+            exec('v='+v)
+            self.paramd[p.strip()]=float(v)
+
+
 ######################################################################
 # VARIABLE : BAT
     def instance_bat(self):
@@ -117,11 +141,17 @@ class N3D(G3D_class.G3D):
                 if (k is not None):
                     varname=varname+'k'+str(k)
                 isthere=True
-       #         if (i is None) and (j is None) and (k is None):
-                    # NEMO NEEDS EXTRA MASKING
+                self.testz()
+                # NEMO NEEDS EXTRA MASKING
                 print('remasking ' +varname)
                 exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
-                # This assumes that all variables comes with 4 dimension, eventually with only one level
+                # This ensures that all variables comes with 4 dimension, eventually with length=1
+                exec('locshape=self.'+varname+'.shape')
+                if len(locshape)!=4: # a dimension is missing. Most probably it's depth for a 2D variable, so we'll deal with that for the moment.
+                    if locshape==(len(self.dates),len(self.lat),len(self.lon)):
+                        exec('self.'+varname+'=self.'+varname+'[:,None,:,:]')
+                    else:
+                        print('missing dim in testvar, for %s of dimensions %s'%(varname,locshape))
                 exec('nt=self.'+varname+'.shape[0]')
                 for t in range(nt):
                     exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')

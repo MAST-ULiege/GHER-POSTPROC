@@ -4,3 +4,5 @@ MODEL   : NEMO
 BATFILE : './OutNEMO/mesh_mask.nc_31levels'
 PLOTDIR : './Plots/'
 VERBOSE : True
+PARAMFILE : './OutNEMO/par_BAMHBI.h90'
+CONFIGFILE : './OutNEMO/namelist_top_cfg'
