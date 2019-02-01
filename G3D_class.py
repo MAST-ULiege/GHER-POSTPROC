@@ -149,11 +149,29 @@ class G3D(object):
             # looking for the variable in the original file
             with Dataset(self.infile,'r') as nc:
                 if  (k is None) and (i is None) and (j is None):
-                    exec('self.'+varname+ '= nc.variables[varname][:]')
+                    l=nc.variables[varname][:]
+                    if (len(l.shape)==3):
+                        print(varname + ' is 2+1D')
+                        exec('self.'+varname+ '= nc.variables[varname][:,None,:,:]')
+                    else:
+                        exec('self.'+varname+ '= nc.variables[varname][:]')
+
                     print( 'Just loaded '+ (varname) + ' for full')
                 elif (k is None) and (i is not None) and (j is not None):
                     print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
-                    exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
+#                    try:
+                    l=nc.variables[varname][:]
+                    if (len(l.shape)==4):
+                        print(varname + 'varname is 3+1D') 
+                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= l[:,:,j,i]')#nc.variables[varname][:,:,j,i]')
+                    elif (len(l.shape)==3):
+                        print(varname + ' is 2+1D')
+                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= l[:,None,j,i]')#nc.variables[varname][:,:,j,i]')
+                    else:
+                        print('cannot understand diomension of %s'%varname)
+
+                        
+
                     print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                 elif (k is not None) and (i is None) and (j is None):
                     if (k=="surface"):
@@ -201,6 +219,11 @@ class G3D(object):
                 #try:
                 print('     self.instance_'+varname+'(i='+str(i)+',j='+str(j)+',k='+str(k)+')')
                 exec('self.instance_'+varname+'(i=i,j=j,k=k)')
+
+#                exec('loc=self.+varname+')
+
+
+
                 #except:
                 #    print('self.instance_'+varname+' is not defined.')
                     
@@ -626,15 +649,15 @@ class G3D(object):
         self.testtime()
         i,j=self.test_coord(c1,c2)
 
-        zloc=self.z[:,j,i]
+        zloc=self.z[0,:,j,i]
         if c3=='bottom':
-            k=11 # 11 is the python index for the bottom layer in the first sigma layer !! very case specific XX  
+            k=self.kbottom
         else: 
             k=(np.abs(zloc-c3)).argmin()
         if isvar:
             # for some reason the 4d variable is already loaded in memory
             exec('lloc=self.'+varname)
-            lloc=loc[:,:,j,i]
+            lloc=lloc[:,:,j,i]
         else:
             # It's not loaded, but we'll load only what we need
             self.gload(varname,i=i,j=j)
@@ -655,10 +678,10 @@ class G3D(object):
         self.testtime()
 
         exec('loc=self.'+varname)
-        vint=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
+        vint=ma.empty( (loc.shape[0],1,loc.shape[2],loc.shape[3]) )
 
         for t in xrange(len(self.time)):
-            vint[t]=ma.sum(loc[t]*self.dz,0)
+            vint[t]=ma.sum(loc[t]*self.dz[0],0)
         
         return vint
 
@@ -895,6 +918,29 @@ class G3D(object):
         cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
         cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal")
         fig.savefig(self.figoutputdir+figout+'.png')
+
+
+############################################################################
+# PLOTS : Plot Time Series
+
+    def plotseries (self, varname, figout=None, title=None, Clim=None):
+        if figout==None:
+            figout=varname
+        exec('loc=self.'+varname)
+        if Clim==None: 
+            Clim=[loc.min(),loc.max()]
+
+        locator = mdates.AutoDateLocator()
+        formator = mdates.AutoDateFormatter(locator)
+        
+        fig=plt.figure(figsize=(15, 8))
+        ax=plt.subplot(1, 1, 1)
+        ax.xaxis_date()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formator)
+        cs=plt.plot(self.dates, loc)
+        plt.title(title)
+        fig.savefig(self.figoutputdir+'TimeSeries_'+figout+'.png')
 
 ############################################################################
 # VARIABLE : Density
@@ -1168,7 +1214,7 @@ class G3D(object):
             self.testvar('NEM')
             self.testvar('NFL')
             self.Nphyto = self.NDI+self.NEM+self.NFL
-#            del self.NDI, self.NEM, self.NFL
+            del self.NDI, self.NEM, self.NFL
         else:
             print('NEED TO BE COMPLETED : instance_Nphyto')
 
@@ -1180,7 +1226,7 @@ class G3D(object):
             self.testvar('MES')
             self.testvar('MIC')
             self.Nzoo = self.MES*self.paramd['NCrMesoZoo']+self.MIC*self.paramd['NCrMicroZoo']
-#            del self.MES, self.MIC
+            del self.MES, self.MIC
         else:
             print('NEED TO BE COMPLETED : instance_Nzoo')
 
@@ -1192,7 +1238,7 @@ class G3D(object):
             self.testvar('NOC')
             self.testvar('GEL')
             self.Ngel = self.GEL*self.paramd['NCrGelatinous']+self.NOC*self.paramd['NCrNoctiluca']
-#            del self.GEL, self.NOC
+            del self.GEL, self.NOC
         else:
             print('NEED TO BE COMPLETED : instance_Ngel')
 
@@ -1204,7 +1250,7 @@ class G3D(object):
             self.testvar('NOS')
             self.testvar('NHS')
             self.Ndis = self.NHS+self.NOS
-#            del self.NDI, self.NEM, self.NFL 
+#            del self.NOS, self.NHS
         else:
             print('NEED TO BE COMPLETED : instance_Ndis')
 
@@ -1217,21 +1263,9 @@ class G3D(object):
             self.testvar('DNS')
             self.testvar('PON')
             self.Norg = self.DNS+self.DNL+self.PON
-#            del self.DNS, self.DNL, self.PON
+            del self.DNS, self.DNL, self.PON
         else:
             print('NEED TO BE COMPLETED : instance_Norg')
-
-############################################################################
-# VARIABLE : Ns, Nitrogen in dissolved inorganic form
-
-    def instance_Ndis(self, i=None, j=None, k=None):
-        if (i is None) and (j is None) and (k is None):
-            self.testvar('NOS')
-            self.testvar('NHS')
-            self.Ndis = self.NHS+self.NOS
-#            del self.NDI, self.NEM, self.NFL 
-        else:
-            print('NEED TO BE COMPLETED : instance_Ndis')
             
 ############################################################################ 
 # VARIABLE : Nbac, Nitrogen in bacteria form
@@ -1240,6 +1274,7 @@ class G3D(object):
         if (i is None) and (j is None) and (k is None):
             self.testvar('BAC')
             self.Nbac = self.BAC*self.paramd['NCrBac']
+            del self.BAC
         else:
             print('NEED TO BE COMPLETED : instance_Ndis')
 
