@@ -12,17 +12,7 @@ class N3D(G3D_class.G3D):
     '''This is a class for NEMO model outputs exploration. It is based on G3D class but overides specific methods (for z, lon, lat definitions)'''
 ######################################################################
     def __init__(self,infile,YAML_FILE='local.yml'):
-        self.infile=infile
-        #The diag filename can be used to store computed diagnostic
-        self.diagfile= self.infile[:-3]+".diag.nc"
         print(' *******  \n')
-        if os.path.isfile(self.infile):
-            print(self.infile + ' -> OK')
-            self.found=True
-        else:
-            print(self.infile + ' can not be found')
-            self.found=False
-            return
         try:
 #            YAML_FILE = 'local.yml'
             print("\nLaunching with YAML file: %s" % YAML_FILE)
@@ -31,6 +21,7 @@ class N3D(G3D_class.G3D):
                 config = yaml.load(stream)
         except Exception:
             print("".join(("\n A file called local.yml should be present","'\n")))
+
         try:
             self.model    = config['MODEL'] 
         except :
@@ -39,6 +30,27 @@ class N3D(G3D_class.G3D):
         self.batfile      = config['BATFILE']
         self.verbose      = config['VERBOSE']
         self.figoutputdir = config['PLOTDIR']
+        self.resultdir    = config['RESULTDIR']
+
+        if os.path.isfile(infile):
+            self.infile=infile
+            print(self.infile + ' -> OK')
+            self.found=True
+        elif os.path.isfile(config['RESULTDIR']+infile):
+            self.infile=config['RESULTDIR']+infile
+            print(self.infile + ' -> OK')
+            self.found=True
+        else:
+            print(infile+' can not be found in '+config['RESULTDIR'])
+            self.found=False
+            return
+
+        if not os.path.isdir(self.figoutputdir):
+            os.mkdir(self.figoutputdir)
+
+        #The diag filename can be used to store computed diagnostic
+        self.diagfile= self.infile[:-3]+".diag.nc"
+
         self.instance_bat()
         self.testtime()
 
