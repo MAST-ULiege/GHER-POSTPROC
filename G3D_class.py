@@ -835,7 +835,7 @@ class G3D(object):
 ############################################################################
 # PLOTS : Plot Map 
 
-    def mapStrip(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, daysbetween=31,extend="max", diff=False):
+    def mapStrip(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, daysbetween=31,extend="max", diff=False, difflag='init'):
         
         exec('loc=self.'+varname+'.copy()')
 
@@ -868,10 +868,16 @@ class G3D(object):
         if diff:
             locinit=loc[0].copy()
             for t in range(loc.shape[0]):
-                loc[t]=loc[t]-locinit
+                if difflag=='init':
+                    loc[t]=loc[t]-locinit
+                else:
+                    locorig=loc.copy()
+                    try: 
+                        loc[t]=loc[t]-locorig[max(t-difflag,0)]
+                    except TypeError:
+                        Print( 'difflag should be ''init'' or an integer (for now timesteps)')
             Clim=[-max(abs(loc.min()),abs(loc.max())), max(abs(loc.min()),abs(loc.max()))]
             exec('cmap=cmocean.cm.'+'balance')
-
 
         # computing number of sub-plots
         nframe=int(np.floor(len(self.dates)/daysbetween)) # TODO, should instead allow for different output time-steps, but still consider days and makes average when neeeded
@@ -1030,7 +1036,7 @@ class G3D(object):
         locator = mdates.AutoDateLocator()
         formator = mdates.AutoDateFormatter(locator)
         
-        fig=plt.figure(figsize=(15, 8))
+        fig=plt.figure(figsize=(10, 4))
         ax=plt.subplot(1, 1, 1)
         ax.xaxis_date()
         ax.xaxis.set_major_locator(locator)
