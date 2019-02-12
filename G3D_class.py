@@ -995,7 +995,7 @@ class G3D(object):
         if figout==None:
             figout=varname
         exec('loc=self.'+varname)
-        if z==None:
+        if z.all()==None:
             z=range(loc.shape[1])
         if zlim!=None:
             zimin=abs(z-zlim[0]).argmin()
