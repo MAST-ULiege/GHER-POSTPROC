@@ -1370,7 +1370,7 @@ class G3D(object):
 
     def instance_Ndis2(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
-            self.Ndis = self.sumvar({'NOS':1,'NHS':1},i,j,k)
+            self.Ndis2 = self.sumvar({'NOS':1,'NHS':1},i,j,k)
         else:
             print('NEED TO BE COMPLETED : instance_Ndis')
 
@@ -1380,8 +1380,8 @@ class G3D(object):
         out=ma.zeros(self.time.shape+self.z.shape[1:])
         for vvar, factor in sumdic.items():
             self.testvar(vvar)
-            eval('out = out + self.'+vvar+'*fac')
-            if self.sparemem: eval('del self.'+vvar)
+            exec('out = ma.add(out, self.'+vvar+'*factor)')
+            if self.sparemem: exec('del self.'+vvar)
         return(out)
 
 ############################################################################

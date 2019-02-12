@@ -27,8 +27,6 @@ class N3D(G3D_class.G3D):
         except :
             self.model    = 'GHER'
         self.batfile      = config['BATFILE']
-        self.verbose      = config['VERBOSE']
-        self.sparemem     = config['SPAREMEM']
         self.figoutputdir = config['PLOTDIR']
         self.resultdir    = config['RESULTDIR']
 
@@ -54,10 +52,17 @@ class N3D(G3D_class.G3D):
         self.instance_bat()
         self.testtime()
 
+        try:
+            self.verbose      = config['VERBOSE']
+            self.sparemem     = config['SPAREMEM']
+
     # instantiate the dictionnary with model parameters
-        self.initparams(config['PARAMFILE'])
+            self.initparams(config['PARAMFILE'])
     # needs an update based on namelist (model specific)
-        self.updateparams(config['CONFIGFILE'])
+            self.updateparams(config['CONFIGFILE'])
+
+        except: 
+            print('some available setup info not found in the yaml file, check N3D_class.py: _init_, if needed')
 
 ###################################################################### 
 
