@@ -26,9 +26,9 @@ class N3D(G3D_class.G3D):
             self.model    = config['MODEL'] 
         except :
             self.model    = 'GHER'
-    # this should be read somewhere
         self.batfile      = config['BATFILE']
         self.verbose      = config['VERBOSE']
+        self.sparemem     = config['SPAREMEM']
         self.figoutputdir = config['PLOTDIR']
         self.resultdir    = config['RESULTDIR']
 

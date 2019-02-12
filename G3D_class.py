@@ -1314,10 +1314,14 @@ class G3D(object):
     def instance_Nphyto(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.testvar('NDI')
+            self.Nphyto = self.NDI
+            if self.sparemem: del self.NDI
             self.testvar('NEM')
+            self.Nphyto = self.Nphyto+self.NEM
+            if self.sparemem: del self.NEM
             self.testvar('NFL')
-            self.Nphyto = self.NDI+self.NEM+self.NFL
-            del self.NDI, self.NEM, self.NFL
+            self.Nphyto = self.Nphyto+self.NFL
+            if self.sparemem: del self.NFL
         else:
             print('NEED TO BE COMPLETED : instance_Nphyto')
 
@@ -1327,9 +1331,11 @@ class G3D(object):
     def instance_Nzoo(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.testvar('MES')
+            self.Nzoo = self.MES*self.paramd['NCrMesoZoo']
+            if self.sparemem: del self.MES
             self.testvar('MIC')
-            self.Nzoo = self.MES*self.paramd['NCrMesoZoo']+self.MIC*self.paramd['NCrMicroZoo']
-            del self.MES, self.MIC
+            self.Nzoo = self.Nzoo+self.MIC*self.paramd['NCrMicroZoo']
+            if self.sparemem: del self.MIC
         else:
             print('NEED TO BE COMPLETED : instance_Nzoo')
 
@@ -1339,9 +1345,11 @@ class G3D(object):
     def instance_Ngel(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.testvar('NOC')
+            self.Ngel = self.NOC*self.paramd['NCrNoctiluca']
+            if self.sparemem: del self.NOC
             self.testvar('GEL')
-            self.Ngel = self.GEL*self.paramd['NCrGelatinous']+self.NOC*self.paramd['NCrNoctiluca']
-            del self.GEL, self.NOC
+            self.Ngel = self.NGel+self.NOC*self.paramd['NCrNoctiluca']
+            if self.sparemem: del self.GEL
         else:
             print('NEED TO BE COMPLETED : instance_Ngel')
 
@@ -1356,6 +1364,25 @@ class G3D(object):
 #            del self.NOS, self.NHS
         else:
             print('NEED TO BE COMPLETED : instance_Ndis')
+
+
+###########################################################################
+
+    def instance_Ndis2(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Ndis = self.sumvar({'NOS':1,'NHS':1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Ndis')
+
+###########################################################################
+
+    def sumvar(self, sumdic, i=None, j=None, k=None):
+        out=ma.zeros(self.time.shape+self.z.shape[1:])
+        for vvar, factor in sumdic.items():
+            self.testvar(vvar)
+            eval('out = out + self.'+vvar+'*fac')
+            if self.sparemem: eval('del self.'+vvar)
+        return(out)
 
 ############################################################################
 # VARIABLE : Norg, Nitrogen in detritic organic form
