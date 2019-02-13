@@ -1298,6 +1298,8 @@ class G3D(object):
 # VARIABLE : totN, Total Nitrogen
     def instance_totN(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
+            self.totN = self.sumvar({'Nphyto':1,'Nzoo':1,'Ngel':1,'Nbac':1,'Ndis':1,'Norg':1},i,j,k)
+            '''
             self.testvar('Nphyto')
             self.testvar('Nzoo')
             self.testvar('Ngel')
@@ -1305,6 +1307,7 @@ class G3D(object):
             self.testvar('Ndis')
             self.testvar('Norg')
             self.totN=self.Nphyto+self.Nzoo+self.Ngel+self.Nbac+self.Ndis+self.Norg
+            '''
         else:
             print('NEED TO BE COMPLETED : instance_totN')
 
@@ -1313,6 +1316,10 @@ class G3D(object):
 
     def instance_Nphyto(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
+            self.Nphyto = self.sumvar({'NDI':1,'NEM':1,'NFL':1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Ndis')
+            '''
             self.testvar('NDI')
             self.Nphyto = self.NDI
             if self.sparemem: del self.NDI
@@ -1324,18 +1331,21 @@ class G3D(object):
             if self.sparemem: del self.NFL
         else:
             print('NEED TO BE COMPLETED : instance_Nphyto')
-
+            '''
 ############################################################################ 
 # VARIABLE : Nzoo, Nitrogen in zoo form
 
     def instance_Nzoo(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
+            self.Nzoo = self.sumvar({'MES':self.paramd['NCrMesoZoo'] ,'MIC':self.paramd['NCrMicroZoo']},i,j,k)
+            '''
             self.testvar('MES')
             self.Nzoo = self.MES*self.paramd['NCrMesoZoo']
             if self.sparemem: del self.MES
             self.testvar('MIC')
             self.Nzoo = self.Nzoo+self.MIC*self.paramd['NCrMicroZoo']
             if self.sparemem: del self.MIC
+            '''
         else:
             print('NEED TO BE COMPLETED : instance_Nzoo')
 
@@ -1344,18 +1354,21 @@ class G3D(object):
 
     def instance_Ngel(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
+            self.Ngel = self.sumvar({'GEL':self.paramd['NCrGelatinous'] ,'NOC':self.paramd['NCrNoctiluca']},i,j,k) 
+            '''
             self.testvar('NOC')
             self.Ngel = self.NOC*self.paramd['NCrNoctiluca']
             if self.sparemem: del self.NOC
             self.testvar('GEL')
             self.Ngel = self.NGel+self.NOC*self.paramd['NCrNoctiluca']
             if self.sparemem: del self.GEL
+            '''
         else:
             print('NEED TO BE COMPLETED : instance_Ngel')
 
 ############################################################################
 # VARIABLE : Ndis, Nitrogen in dissolved inorganic form
-
+    '''
     def instance_Ndis(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.testvar('NOS')
@@ -1364,13 +1377,13 @@ class G3D(object):
 #            del self.NOS, self.NHS
         else:
             print('NEED TO BE COMPLETED : instance_Ndis')
-
+    '''
 
 ###########################################################################
 
-    def instance_Ndis2(self, i=None, j=None, k=None):
+    def instance_Ndis(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
-            self.Ndis2 = self.sumvar({'NOS':1,'NHS':1},i,j,k)
+            self.Ndis = self.sumvar({'NOS':1,'NHS':1},i,j,k)
         else:
             print('NEED TO BE COMPLETED : instance_Ndis')
 
@@ -1389,11 +1402,14 @@ class G3D(object):
 
     def instance_Norg(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
+            self.Norg = self.sumvar({'DNL':1,'DNS':1,'PON':1},i,j,k)
+            '''
             self.testvar('DNL')
             self.testvar('DNS')
             self.testvar('PON')
             self.Norg = self.DNS+self.DNL+self.PON
             del self.DNS, self.DNL, self.PON
+            '''
         else:
             print('NEED TO BE COMPLETED : instance_Norg')
             
