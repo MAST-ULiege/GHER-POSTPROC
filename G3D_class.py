@@ -831,7 +831,7 @@ class G3D(object):
         cbar.set_label(varname)
 
         fig.savefig(self.figoutputdir+'MonthlyClim_'+varname+figsuffix+'.png')
-        fig.close()
+        plt.close()
 
 ############################################################################
 # PLOTS : Plot Map 
@@ -927,7 +927,7 @@ class G3D(object):
         cbar.set_label(varname)
 
         fig.savefig(self.figoutputdir+'Strip_'+varname+figsuffix+'.png')
-        fig.close()
+        plt.close()
         
 ############################################################################
 # PLOTS : Plot Map 
@@ -988,7 +988,7 @@ class G3D(object):
         #m.colorbar()
         fig.savefig(figout)
         fig.savefig(self.figoutputdir+figout+'.png')
-        fig.close()
+        plt.close()
 
 ############################################################################
 # PLOTS : Plot Vertical Profile
@@ -1023,7 +1023,7 @@ class G3D(object):
         cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
         cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal")
         fig.savefig(self.figoutputdir+figout+'.png')
-        fig.close()
+        plt.close()
 
 ############################################################################
 # PLOTS : Plot Time Series
@@ -1046,7 +1046,7 @@ class G3D(object):
         cs=plt.plot(self.dates, loc)
         plt.title(title)
         fig.savefig(self.figoutputdir+'TimeSeries_'+figout+'.png')
-        fig.close()
+        plt.close()
 
 ############################################################################
 # VARIABLE : Density
