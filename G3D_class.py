@@ -891,7 +891,7 @@ class G3D(object):
         llon,llat = np.meshgrid(loclon,loclat)
 
         for fi in range(1,nframe+1):
-            indx = range ((fi-1)*7,fi*7)
+            indx = range ((fi-1)*daysbetween,fi*daysbetween)
             spi=int(np.ceil((fi-1)/cols))
             spj=(fi-1)%cols
          #   print('ind %s, ind %s, spi %s, spj %s'%(fi,indx,spi,spj))
