@@ -150,13 +150,19 @@ class N3D(G3D_class.G3D):
                 exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
-            print('%s not found '%(varname))
+            print('%s currently not loaded  '%(varname))
             isthere=False
             if doload:
-                print ('Loading %s'%(varname) )
-                self.gload(varname,i=i,j=j,k=k)
-                if (k is not None):
-                    varname=varname+'k'+str(k)
+                print ('Loading %s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
+                if (k is not None) and self.testvar(varname):
+                    if (k=='bottom'):
+                        exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                        for i in range(self.bat.shape[2]):
+                            for j in range(self.bat.shape[3]):
+                                if (not ma.is_masked(self.kbottom[0,0,i,j])):
+                                    exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
+                else:
+                    self.gload(varname,i=i,j=j,k=k)
                 isthere=True
                 self.testz()
                 # NEMO NEEDS EXTRA MASKING
@@ -210,8 +216,3 @@ class N3D(G3D_class.G3D):
         else:
             self.TEM=self.votemper
             del self.votemper
-
-
-
-
-

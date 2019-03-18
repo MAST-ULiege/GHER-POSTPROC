@@ -152,11 +152,12 @@ class G3D(object):
                     l=nc.variables[varname][:]
                     if (len(l.shape)==3):
                         print(varname + ' is 2+1D')
-                        exec('self.'+varname+ '= nc.variables[varname][:,None,:,:]')
+                        loc=nc.variables[varname][:]
+                        exec('self.'+varname+ '= loc[:,None,:,:]')
                     else:
                         exec('self.'+varname+ '= nc.variables[varname][:]')
 
-                    print( 'Just loaded '+ (varname) + ' for full')
+                    print( 'Just loaded '+ (varname) + ' full')
                 elif (k is None) and (i is not None) and (j is not None):
                     print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
 #                    try:
@@ -179,7 +180,8 @@ class G3D(object):
                         exec('self.'+varname+'ksurface=self.'+varname+'ksurface[:,None,:,:]')
                     elif (k=='bottom'):
 #                        exec('self.'+varname+'kbottom=ma.empty([len(self.time),1,self.bat.shape[2], self.bat.shape[3]])')
-                        exec('self.'+varname+ '= nc.variables[varname][:]')
+                        exec('self.'+varname+ '= self.testvar(varname)')
+#                        exec('self.'+varname+ '= nc.variables[varname][:]')
                         exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
                         for i in range(self.bat.shape[2]):
                             for j in range(self.bat.shape[3]):
@@ -267,8 +269,6 @@ class G3D(object):
 # create a copy of the file "in.nc" as "in.ext.nc" copy dimension and attributes and add the requested value
          
     def gstore(self,varname, ztab=None):
-        
-        
         try:
             with Dataset(self.diagfile,'r') as nc:
                 lon= nc.variables['time'][:]
@@ -837,7 +837,7 @@ class G3D(object):
 # PLOTS : Plot Map 
 
     def mapStrip(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, daysbetween=31,extend="max", diff=False, difflag='init'):
-        
+
         exec('loc=self.'+varname+'.copy()')
 
         loclon=self.lon
@@ -915,7 +915,7 @@ class G3D(object):
                 if batlines:
                     aaxes[spi,spj ].contour(loclon, loclat,locbat,levels=[40,80,120, 500, 1000], colors='k',linestyles='dashed')
 
-            aaxes[spi,spj].set_title(self.dates[indx[0]].strftime('%d%b')+'-'+self.dates[indx[-1]].strftime('%d%b'))
+            aaxes[spi,spj].set_title(self.dates[indx[0]].strftime('%d%b')+'-'+self.dates[indx[-1]].strftime('%d%b%y'))
             if not (spj==0):
                  aaxes[spi,spj].get_yaxis().set_visible(False)
             if not (spi==(cols-1)):
@@ -1125,9 +1125,19 @@ class G3D(object):
 # VARIABLE Sea Bottom Oxygen
     def instance_O2bottom(self, i=None,j=None,k=None):
         if (i is None) and (j is None) :
-            self.gload('DOX',k='bottom')
+            self.testvar('DOX',k='bottom')
             self.O2bottom=self.DOXkbottom
             del self.DOXkbottom
+        else:
+            print(' Case not ready, please code .. ')
+
+############################################################################
+# VARIABLE Sea O2sat
+    def instance_pO2satbottom(self, i=None,j=None,k=None):
+        if (i is None) and (j is None) :
+            self.testvar('pO2sat',k='bottom')
+            self.pO2satbottom=self.pO2satkbottom
+            del self.pO2satkbottom
         else:
             print(' Case not ready, please code .. ')
 
@@ -1185,7 +1195,6 @@ class G3D(object):
         else:
             print(' Case not ready, please code .. ')
 
-
 ############################################################################                                                                                                             
 # VARIABLE : Mixed layer depth  
 #
@@ -1206,7 +1215,6 @@ class G3D(object):
                     f = interp1d(Dloc[:,i,j], zloc[:,i,j])
 
         MLDloc[i,j]=f(d3+deltasig)
-
         return MLDloc
 
 ###########################################################################
@@ -1220,8 +1228,6 @@ class G3D(object):
                     if ma.is_masked(self.DENat3[t,0,i,j]):
                         continue
                     self.DENat3[t,0,i,j]=np.interp(3,self.z[0,:,i,j],self.DEN[t,:,i,j])
-
-
 
 ############################################################################   
 # VARIABLE tracer age ... should be made generic for tracer number
@@ -1292,7 +1298,7 @@ class G3D(object):
             self.testvar('DOX')
             self.testvar('O2sat')
             self.pO2sat = self.DOX/self.O2sat*100
-        else:
+        elif (i is None) and (j is None) and (k is not None):
             self.gload('DOX',i=i,j=j)
             self.gload('O2sat',i=i,j=j)
             exec('self.pO2sati'+str(i)+'j'+str(j)+'=self.DOXi'+str(i)+'j'+str(j)+'/self.O2sati'+str(i)+'j'+str(j)+'*100')
