@@ -320,7 +320,7 @@ class G3D(object):
 ######################################################################
 # PROCESS : FULL INTEGRATION
 
-    def integratespatial (self,varname):
+    def integratespatial (self, varname, maskin=None): 
     # TODO allows for a optional mask, that could be 2D, 3D or 4D. 
     #    if dz.shape!=field.shape:
     #        print("Wrong Shapes")
@@ -332,16 +332,21 @@ class G3D(object):
         self.testvar(varname)
         self.testtime()
 
-        integrated=ma.empty(len(self.time))
+        integrated=ma.empty(len(self.dates))
         exec('loc=self.'+varname)
         print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
-        if (len(self.dz.shape)==3)and(len(loc.shape)==4):
+        if (len(self.dz.shape)==3)and(loc.shape[1]>1):
             print("4D")
-            for t in xrange(len(self.time)):
+            for t in xrange(len(self.dates)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
+        elif (len(self.dz.shape)==3)and(loc.shape[1]==1):
+            print("2D")
+            for t in xrange(len(self.dates)):
+                bi=loc[t]*self.dy*self.dx
+                integrated[t] = ma.sum(bi)
         # return should be 1D (time)    
-        return(integrated)
+        return(integrated[:,None,None,None])
         
 ######################################################################
 # PROCESS : TIME AVERAGE
