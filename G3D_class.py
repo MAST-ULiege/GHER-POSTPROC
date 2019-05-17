@@ -7,6 +7,7 @@ import os.path
 import datetime as dt
 import cmocean
 import calendar
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 #from mpl_toolkits.basemap import Basemap
@@ -61,7 +62,7 @@ class G3D(object):
         self.instance_bat()
         self.testtime()
 
-        self.ksurface     = len(self.sigII)+len(self.sigI)-2-1
+        self.ksurface     = len(self.sigII)+len(self.sigI)-2-1  # !!  MAKE THIS A COMPLETE FIELD
         self.kbottom      = ma.where(self.bat>self.hlim,0,len(self.sigII)-1)
 
     # instantiate the dictionnary with model parameters
@@ -179,15 +180,14 @@ class G3D(object):
                         exec('self.'+varname+'ksurface= nc.variables[varname][:,self.ksurface]')
                         exec('self.'+varname+'ksurface=self.'+varname+'ksurface[:,None,:,:]')
                     elif (k=='bottom'):
-#                        exec('self.'+varname+'kbottom=ma.empty([len(self.time),1,self.bat.shape[2], self.bat.shape[3]])')
-                        exec('self.'+varname+ '= self.testvar(varname)')
-#                        exec('self.'+varname+ '= nc.variables[varname][:]')
+                        self.testvar(varname)
                         exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                        print('  SWEET  ')
                         for i in range(self.bat.shape[2]):
                             for j in range(self.bat.shape[3]):
                                 if (not ma.is_masked(self.kbottom[0,0,i,j])):
                                     exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
-                                    
+                        print(' honey ') 
                     else:                        
                         exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
                         exec('self.'+varname+'k'+str(k)+'=self.'+varname+'k'+str(k)+'[:,None,:,:]')
@@ -426,10 +426,10 @@ class G3D(object):
                 exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
-            print('%s not found '%(varname))
+            print('%s currently not loaded '%(varname))
             isthere=False
             if doload:
-                print ('Loading %s'%(varname) )
+                print ('Loading %s for i=%s, j=%s, k=%s'%(varname,i,j,k))
                 self.gload(varname,i=i,j=j,k=k)
                 isthere=True
 
@@ -1049,6 +1049,44 @@ class G3D(object):
         plt.close()
 
 ############################################################################
+# PLOTS : Plot OMI-like Time Series
+
+    def plotseriesOMI (self, varname, figout=None, title=None, Clim=None, printtrend = False):
+        
+
+        mpl.style.use('ggplot')
+        plt.rcParams['axes.facecolor']='w'
+        plt.rcParams['grid.color']='lightgrey'#   b0b0b0    # grid color
+        plt.rcParams['grid.linestyle']='--'         # solid
+        plt.rcParams['axes.edgecolor']='black'
+
+        if figout==None:
+            figout=varname
+        exec('loc=self.'+varname)
+        if Clim==None: 
+            Clim=[loc.min(),loc.max()]
+
+        locator = mdates.AutoDateLocator()
+        formator = mdates.AutoDateFormatter(locator)
+        
+        fig=plt.figure(figsize=(10, 4))
+        ax=plt.subplot(1, 1, 1)
+        ax.xaxis_date()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formator)
+        cs=plt.plot(self.dates, loc, color = 'lightseagreen',linewidth = 2, marker='o',markersize = 10, markeredgecolor=None)
+        plt.title(title)
+
+#        if printtrend:
+#            fit1,cov = np.polyfit(ttime_Annual[~np.isnan(ens_mean_Annual)], ens_mean_Annual[~np.isnan(ens_mean_Annual)],1, cov=True)
+#            trend1 = fit1[0]*365.25
+#            stderroronslope = np.sqrt(np.diag(cov))[0]*365.25
+
+
+        fig.savefig(self.figoutputdir+'TimeSeries_'+figout+'.png')
+        plt.close()
+
+############################################################################
 # VARIABLE : Density
 
     def instance_DEN(self,i=None,j=None,k=None):
@@ -1464,8 +1502,8 @@ class G3D(object):
 
     def instance_H120(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
-            self.testvar('DOXk11') # TODO : replace with O2bottom
-            botDOX=self.DOXk11
+            self.testvar('O2bottom') 
+            botDOX=self.O2bottom
             loc=np.zeros_like(botDOX)
 #            for i in botDOX.shape[2]:
 #                for j in botDOX.shape[]:
@@ -1501,6 +1539,16 @@ class G3D(object):
                         loc[di]=loc[di-1]+1
             exec('self.H120i'+str(i)+'j'+str(j)+'=loc[:,None]') 
             print('done')           
+
+
+############################################################################
+
+    def instance_HYPOXbottom(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('O2bottom')
+            self.HYPOXbottom=int(self.O2bottom<60)
+        else:
+            print('NEED TO BE COMPLETED : instance_HYPOXbottom')
 
 ############################################################################ 
 # VARIABLE : Ns, Nitrogen in dissolved inorganic form                     
