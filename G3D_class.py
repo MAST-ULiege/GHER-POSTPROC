@@ -335,12 +335,12 @@ class G3D(object):
         integrated=ma.empty(len(self.dates))
         exec('loc=self.'+varname)
         print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
-        if (len(self.dz.shape)==3)and(loc.shape[1]>1):
+        if (len(self.dz.shape)>=3)and(loc.shape[1]>1):
             print("4D")
             for t in xrange(len(self.dates)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
-        elif (len(self.dz.shape)==3)and(loc.shape[1]==1):
+        elif (len(self.dz.shape)>=3)and(loc.shape[1]==1):
             print("2D")
             for t in xrange(len(self.dates)):
                 bi=loc[t]*self.dy*self.dx
