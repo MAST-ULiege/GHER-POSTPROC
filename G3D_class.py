@@ -59,6 +59,11 @@ class G3D(object):
         self.figoutputdir = config['PLOTDIR']
         self.resultdir    = config['RESULTDIR']
 
+        try:
+            self.timevarname    = config['TIMEVARNAME']
+        except :
+            self.timevarname    = 'time'
+
         self.instance_bat()
         self.testtime()
 
@@ -115,9 +120,26 @@ class G3D(object):
         # For now let's build a constant z,
         # dynamic z considering ETA can be done later
         with Dataset(self.infile,'r') as nc:
-            self.z   = nc.variables['depth'][1][None,:,:,:] # Make it 4D, even if we don't use elevation for now           
-            self.lon = nc.variables['longitude'][:]
-            self.lat = nc.variables['latitude'][:]
+            try:
+                self.z   = nc.variables['depth'][1][None,:,:,:] # Make it 4D, even if we don't use elevation for now           
+            except:
+                # Only for old 15km case .. no time to do this better now - May 2019
+                self.zi=ma.zeros(np.array([1,32,47,115]))
+                for k in xrange(0,12):
+                    self.zi[0,k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
+                for k in xrange(12,self.zi.shape[0]):
+                    self.zi[0,k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
+                self.z = self.zi[0,0:31]-self.zi[0,1:32]
+                self.z = self.z[None,:]
+
+            try:
+                self.lon = nc.variables['longitude'][:]
+            except:
+                self.lon =range(self.z.shape[3])
+            try:
+                self.lat = nc.variables['latitude'][:]
+            except:
+                self.lat =range(self.z.shape[2])
 
 ######################################################################
 # VARIABLE : ZI
@@ -448,9 +470,12 @@ class G3D(object):
         try:
             self.time
         except:
-            print('%s not found -> loading'%('time'))
-            self.gload('time')
-            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in self.time]
+            print('%s not found -> loading'%(self.timevarname))
+            self.gload(self.timevarname)
+            exec('self.time=self.'+self.timevarname)
+#            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in self.time]
+            # Replaced the above (May 2019) 
+            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
 
 ######################################################################
 # UTILITY : Apply a mask on a variable, handling dimension cases. 
