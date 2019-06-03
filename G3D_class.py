@@ -727,9 +727,10 @@ class G3D(object):
         exec('loc=self.'+varname)
         vmean=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
 
-        for t in xrange(len(self.time)):
-            vmean[t] = ma.sum ( loc[t]*self.dz , 0)
-            vol      = ma.sum (        self.dz , 0)
+        mdz = ma.masked_where( (self.z[0]>zsup) | (self.z[0]<zinf) ,self.dz[0])
+        for t in xrange(len(self.dates)):
+            vmean[t] = ma.sum ( loc[t]*mdz , 0)
+            vol      = ma.sum (        mdz , 0)
             vmean[t] = vmean[t]/vol
 
         return vmean
@@ -799,7 +800,7 @@ class G3D(object):
 ############################################################################
 # PLOTS : Plot Map 
 
-    def mapMonthlyClim(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None):
+    def mapMonthlyClim(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, extend='max'):
 
         exec('loc=self.clim_'+varname)
         loclon=self.lon
@@ -843,13 +844,13 @@ class G3D(object):
                 m.drawcoastlines()
                 m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
                 m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
-                cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend="both")
+                cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend=extend)
                 if batlines: 
                     m.contour(xx,yy,G.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
             except:
                 cs = aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
                                                                                   levels= np.linspace(Clim[0],Clim[1],20),\
-                                                                                  cmap=cmap, extend="both")
+                                                                                  cmap=cmap, extend=extend)
                 if batlines:
                     aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contour(loclon, loclat,locbat,levels=[40,80,120], colors='k',linestyles='dashed')
 
@@ -958,6 +959,105 @@ class G3D(object):
 
         fig.savefig(self.figoutputdir+'Strip_'+varname+figsuffix+'.png')
         plt.close()
+
+############################################################################
+# PLOTS : Plot Map 
+
+    def SeasonStrip(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, extend="max", diff=False, difflag='init'):
+
+        exec('loc=self.'+varname+'.copy()')
+
+        loclon=self.lon
+        loclat=self.lat
+        locbat=self.bat[0,0]
+        if (subdomain is not None):
+            if (subdomain=='NWS'):
+                limlonll,limlatll = self.test_coord(28.0,43.0)
+                limlonur,limlatur = self.test_coord(33.5,47.0)
+            elif (subdomain=='BOSP'):
+                limlonll,limlatll = self.test_coord(27.7,41.0)
+                limlonur,limlatur = self.test_coord(30.9,41.7)
+            else:
+                print('subdomain unknwon')
+            print('coord for subdomain : l1:%s, l2:%s, L1:%s, L2:%s'%(limlatll,limlatur,limlonll,limlonur))
+            loc    = loc[:,:,limlatll:limlatur,limlonll:limlonur]
+            loclat = self.lat[limlatll:limlatur]
+            loclon = self.lon[limlonll:limlonur]
+            locbat = locbat[limlatll:limlatur,limlonll:limlonur]
+
+        if (loc.shape[1]>1):
+            print('!! use mapStrip for 2D-stacks only !!')
+            print('!! proceeding now for the surface layer .. ''')
+            loc=loc[:,self.ksurface][:,None,:,:]
+        if (title==None): title=varname
+        if Clim==None : Clim=[loc.min(),loc.max()]
+        exec('cmap=cmocean.cm.'+cmapname)
+        # usefull to check specific evolution of a variable
+        if diff:
+            locinit=loc[0].copy()
+            for t in range(loc.shape[0]):
+                if difflag=='init':
+                    loc[t]=loc[t]-locinit
+                else:
+                    locorig=loc.copy()
+                    try: 
+                        loc[t]=loc[t]-locorig[max(t-difflag,0)]
+                    except TypeError:
+                        Print( 'difflag should be ''init'' or an integer (for now timesteps)')
+            Clim=[-max(abs(loc.min()),abs(loc.max())), max(abs(loc.min()),abs(loc.max()))]
+            exec('cmap=cmocean.cm.'+'balance')
+
+        # computing number of sub-plots
+        cols = 6
+        rows = (max([i.year for i in self.dates])-min([i.year for i in self.dates]))+1
+        nframes = cols*rows
+
+        fig, aaxes = plt.subplots(nrows=rows, ncols=cols, figsize=(12, 3*rows), squeeze=False)
+ 
+        parallels = np.arange(np.floor(min(loclat)),np.ceil(max(loclat)),1.)
+        meridians = np.arange(np.floor(min(loclon)),np.ceil(max(loclon)),1.)
+        llon,llat = np.meshgrid(loclon,loclat)
+
+        yearsl=ma.unique([i.year for i in self.dates])
+        monthsl=[1,3,5,7,9,11] # I want 6 plot by row : Jan-Feb, Mar-Apr, etc .. 
+        slabels = ['Jan/Feb','Mar/Apr','May/Jun','Jul/Aug','Sep/Oct','Nov/Dec']
+
+        for yi,yy in enumerate(yearsl):
+            for si,ss in enumerate(monthsl):
+                indx = [ i for i,d in enumerate(self.dates) if (d.year == yy) & ( (d.month == ss)| (d.month == ss+1 )) ]
+         #   print('ind %s, ind %s, spi %s, spj %s'%(fi,indx,spi,spj))
+                try: # if BaseMap is installed and OK
+                    m    = Basemap(llcrnrlat=loclat[0],urcrnrlat=loclat[-1],llcrnrlon=loclon[0],urcrnrlon=loclon[-1],\
+                                       resolution='i',ax=aaxes[yi,si])
+                    xx, yy = m(llon,llat)
+                    m.drawcoastlines()
+                    m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
+                    m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
+                    cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend=extend)
+                    if batlines: 
+                        m.contour(xx,yy,self.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
+               # if not (spi==0):
+                    
+                except:
+                    cs = aaxes[yi,si].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
+                                                     levels= np.linspace(Clim[0],Clim[1],20),\
+                                                     cmap=cmap, extend=extend)
+                    if batlines:
+                        aaxes[yi,si ].contour(loclon, loclat,locbat,levels=[40,80,120, 500, 1000], colors='k',linestyles='dashed')
+
+                aaxes[yi,si].set_title(slabels[si]+' '+str(yearsl[yi]))
+                if not (si==0):
+                    aaxes[yi,si].get_yaxis().set_visible(False)
+                if not (yi==(cols-1)):
+                    aaxes[yi,si].get_xaxis().set_visible(False)
+                 
+        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.1, right=0.95, left=0.05, top=0.95)
+        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],10),cax=cbar_ax, orientation="horizontal")
+        cbar.set_label(varname)
+
+        fig.savefig(self.figoutputdir+'SeasonStrip_'+varname+figsuffix+'.png')
+        plt.close()
         
 ############################################################################
 # PLOTS : Plot Map 
@@ -1052,6 +1152,8 @@ class G3D(object):
         cs=plt.contourf(self.dates, z, loc.transpose(), np.linspace(Clim[0],Clim[1],20), extend="max", cmap=cmap )
         cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
         cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal")
+        cbar.set_label(varname)
+
         fig.savefig(self.figoutputdir+figout+'.png')
         plt.close()
 
