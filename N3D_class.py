@@ -47,7 +47,11 @@ class N3D(G3D_class.G3D):
             os.mkdir(self.figoutputdir)
 
         #The diag filename can be used to store computed diagnostic
-        self.diagfile= self.infile[:-3]+".diag.nc"
+        try: 
+            self.diagdir    = config['DIAGDIR']
+            self.diagfile   = self.diagdir+infile[:-3]+".diag.nc"
+        except:
+            self.diagfile= self.infile[:-3]+".diag.nc"
 
         self.instance_bat()
         self.testtime()
@@ -142,18 +146,20 @@ class N3D(G3D_class.G3D):
 # UTILITY : test variable
     def testvar(self,varname, doload=True,i=None,j=None, k=None):
         try:
+            print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             if (i is None) and (j is None) and (k is None):
                 exec('self.'+varname)
             elif (k is not None):
                 exec('self.'+varname+'k'+str(k))
             elif (i is not None) and (j is not None):
+                print('self.'+varname+'i'+str(i)+'j'+str(j))
                 exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
-            print('%s currently not loaded  '%(varname))
+            print('Not there: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             isthere=False
             if doload:
-                print ('Loading %s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
+                print ('Loading v=%s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
                 if (k is not None) and self.testvar(varname):
                     if (k=='bottom'):
                         exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
@@ -164,20 +170,21 @@ class N3D(G3D_class.G3D):
                 else:
                     self.gload(varname,i=i,j=j,k=k)
                 isthere=True
-                self.testz()
-                # NEMO NEEDS EXTRA MASKING
-                print('remasking ' +varname)
-                exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
-                # This ensures that all variables comes with 4 dimension, eventually with length=1
-                exec('locshape=self.'+varname+'.shape')
-                if len(locshape)!=4: # a dimension is missing. Most probably it's depth for a 2D variable, so we'll deal with that for the moment.
-                    if locshape==(len(self.dates),len(self.lat),len(self.lon)):
-                        exec('self.'+varname+'=self.'+varname+'[:,None,:,:]')
-                    else:
-                        print('missing dim in testvar, for %s of dimensions %s'%(varname,locshape))
-                exec('nt=self.'+varname+'.shape[0]')
-                for t in range(nt):
-                    exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')
+                if (i is None) and (j is None):
+                    self.testz()
+                    # NEMO NEEDS EXTRA MASKING
+                    print('remasking ' +varname)
+                    exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
+                    # This ensures that all variables comes with 4 dimension, eventually with length=1
+                    exec('locshape=self.'+varname+'.shape')
+                    if len(locshape)!=4: # a dimension is missing. Most probably it's depth for a 2D variable, so we'll deal with that for the moment.
+                        if locshape==(len(self.dates),len(self.lat),len(self.lon)):
+                            exec('self.'+varname+'=self.'+varname+'[:,None,:,:]')
+                        else:
+                            print('missing dim in testvar, for %s of dimensions %s'%(varname,locshape))
+                    exec('nt=self.'+varname+'.shape[0]')
+                    for t in range(nt):
+                        exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')
                 #elif (k is not None):
                 #    print('remasking ' +varname+str(k))
 #                else:
@@ -197,6 +204,8 @@ class N3D(G3D_class.G3D):
                 t0 = nc.variables['time_counter'].time_origin 
             print('Time Origin : %s'%(t0))    
             self.dates = [dt.datetime.strptime(t0,'%Y-%m-%d %H:%M:%S')+dt.timedelta(seconds=int(t)) for t in self.time]
+            self.timevarname='time_counter'
+
 ######################################################################
 # UTILITY : 
     def instance_SAL(self,i=None,j=None, k=None):
@@ -204,6 +213,9 @@ class N3D(G3D_class.G3D):
         if k is not None:
             exec('self.SALk'+str(k)+'=self.vosalinek'+str(k))
             exec('del self.vosalinek'+str(k))
+        elif (i is not None) and (j is not None):
+            exec('self.SALi'+str(i)+'j'+str(j)+'=self.vosalinei'+str(i)+'j'+str(j))
+            exec('del self.vosalinei'+str(i)+'j'+str(j))
         else: 
             self.SAL=self.vosaline
             del self.vosaline
@@ -213,6 +225,9 @@ class N3D(G3D_class.G3D):
         if k is not None:
             exec('self.TEMk'+str(k)+'=self.votemperk'+str(k))
             exec('del self.votemperk'+str(k))
+        elif (i is not None) and (j is not None): 
+            exec('self.TEMi'+str(i)+'j'+str(j)+'=self.votemperi'+str(i)+'j'+str(j))
+            exec('del self.votemperi'+str(i)+'j'+str(j))
         else:
             self.TEM=self.votemper
             del self.votemper

@@ -308,15 +308,22 @@ class G3D(object):
 
                 for name, variable in inf.variables.items():
                     # take out the variable you don't want
-                    if name  in ['longitudes','lattitude','time','depth','level']: 
+                    if name  in ['longitudes','lattitude','depth','level']: # AC MAY2019 I removed 'time' from this list, to let user decide the file partition in output
                         x = diagf.createVariable(name, variable.datatype, variable.dimensions)
                         diagf.variables[name][:] = inf.variables[name][:]
 
         exec('ndim=len(self.'+varname+'.squeeze().shape)')
-        print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.infile)
+        print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.diagfile)
         exec('print(self.'+varname+'.shape)')
 
         with Dataset(self.diagfile,'a') as nc:
+            try:
+                nc.createDimension('time', None)
+                tv=nc.createVariable('time' , np.float32, 'time')
+                nc.variables['time'][:]= [(t-dt.datetime(1900,01,01,00,00,00)).total_seconds() for t in self.dates]        
+                tv.units='seconds since 1900-01-01 00:00:00'
+            except:
+                print('I guess time exists already for %s'%(self.diagfile))
             print('ndim : '+ str(ndim) )
             try:
                 if ndim==4:      # assuming here : time, level, lat,lon
@@ -334,7 +341,7 @@ class G3D(object):
                 elif ndim == 1:
                     nc.createVariable(varname, np.float32, ('time'),zlib=True)
             except:
-                print ('Seems that '+varname+' already exists on '+self.infile+'. \n I overwrites')
+                print ('Error.. Maybe '+varname+' already exists on '+self.diagfile+' ? \n I attempt to overwrite')
 
             
             exec('nc.variables[varname][:]=self.'+varname)
