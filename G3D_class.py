@@ -150,7 +150,7 @@ class G3D(object):
         self.zi=ma.zeros(self.z.shape+np.array([0,1,0,0]))
         for k in xrange(0,12):
             self.zi[0,k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
-        for k in xrange(12,self.zi.shape[0]):
+        for k in xrange(12,self.zi.shape[1]):
             self.zi[0,k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
             
 ######################################################################
@@ -290,7 +290,7 @@ class G3D(object):
 #
 # create a copy of the file "in.nc" as "in.ext.nc" copy dimension and attributes and add the requested value
          
-    def gstore(self,varname, ztab=None):
+    def gstore(self,varname, ztab=None, dtab=None):
         try:
             with Dataset(self.diagfile,'r') as nc:
                 lon= nc.variables['time'][:]
@@ -330,7 +330,8 @@ class G3D(object):
                     nc.createVariable(varname, np.float32, ('time',     'level', 'latitude', 'longitude'),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
                     nc.createVariable(varname, np.float32, ('time', 'singleton', 'latitude', 'longitude'),zlib=True)
-                elif ((ndim == 2) and ~(ztab is None)) :  # assuming here : time, ztab
+                elif ((ndim == 2) and (ztab is not None)) :  # assuming here : time, ztab
+                    print('I''m IN ZTAB')
                     try:
                         nc.variables['ztab'][:]
                     except:
@@ -338,6 +339,16 @@ class G3D(object):
                         nc.createVariable('ztab', np.float32, 'ztab')
                         nc.variables['ztab'][:] = ztab
                     nc.createVariable(varname, np.float32, ('time', 'ztab'),zlib=True)
+                elif ((ndim == 2) and (dtab is not None)) :  # assuming here : time, dtab
+                    print('I''m IN DTAB')
+                    try:
+                        nc.variables['dtab'][:]
+                    except:
+                        nc.createDimension('dtab', len(dtab))
+                        nc.createVariable('dtab', np.float32, 'dtab')
+                        nc.variables['dtab'][:] = dtab
+                    nc.createVariable(varname, np.float32, ('time', 'dtab'),zlib=True)
+                    
                 elif ndim == 1:
                     nc.createVariable(varname, np.float32, ('time'),zlib=True)
             except:
@@ -546,10 +557,7 @@ class G3D(object):
 ######################################################################
 # PROCESS : Horizontally-averaged profile in DENSITY coordinate, taking sigma coordinate in consideration
 
-    def avgprofile_den(self,varname,
-                   ztab=-1*np.concatenate([np.arange(1010,1018,.2)]),
-                   maskin=None
-                   ):
+    def avgprofile_den(self,varname,dtab=np.concatenate([np.arange(1010,1018,.2)]),maskin=None):
         # The idea is to get an average profile as a function of time
         # return is 2D : [den,time]
         # sigma-space makes it a bit complicate
@@ -559,30 +567,30 @@ class G3D(object):
         self.testvar('DEN')
         self.testtime()
         
-        avg = ma.empty((len(self.time),ztab.shape[0]-1))
+        avg = ma.empty((len(self.time),dtab.shape[0]-1))
         
         exec('loc=self.'+varname)
 
         if maskin is not None:
-            loc = self.maskvar(loc,maskin)
-       
-        if (len(self.dz.shape)==3)and(len(loc.shape)==4):            
-            gridZU = self.zi[0,1:]
-            gridZD = self.zi[0,:-1]
-            for k in xrange(ztab.shape[0]-1):
-                print('%s / %s'%(k+1,ztab.shape[0]-1))
-                dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
-                for t in xrange(len(self.time)):
-                    vol=ma.masked_where(loc[t].mask,dzloc*self.dy*self.dx)
-                    bi=loc[t]*vol
-                    avg[t,k]= ma.sum(bi)/ma.sum(vol)
-                    if (t==10):
-                        print('k %s : from %s to %s' %(k,ztab[k],ztab[k+1]))
-                        print('total volume considered for this layer :  %s km^3' %(ma.sum(vol)/1e9))
-                        print('mean age :  %s' %(avg[t,k]))
+            loc    = self.maskvar(loc,maskin)
+            denloc = self.maskvar(self.DEN,maskin)
+            
+        for k in xrange(dtab.shape[0]-1):
+            for t in xrange(len(self.dates)):    
+                lmask = (denloc[t] < dtab[k]) | (denloc[t] > dtab[k+1])
+                vol=ma.masked_where   ( lmask , self.dz*self.dy*self.dx )
+                mdloc= ma.masked_where( lmask , loc[t])
+                bi = mdloc*vol
+                avg[t,k]= ma.masked_where(ma.sum(vol)/1e9 < 3, ma.sum(bi)/ma.sum(vol))
+                #avg[t,k]= ma.masked_where( (float(bi.count())/float(bi.size))<0.1,ma.sum(bi)/ma.sum(vol))
+                if (t==10):
+                    print('k %s : from %s to %s' %(k,dtab[k],dtab[k+1]))
+                    print('total volume considered for this layer :  %s km^3' %(ma.sum(vol)/1e9))
+                    print('mean age :  %s' %(avg[t,k]))
+                
                     
-        zforplot=(ztab[:-1]+ztab[1:])/2
-        return avg, zforplot
+        dforplot=(dtab[:-1]+dtab[1:])/2
+        return avg, dforplot
 ######################################################################                                                                                        
 # PROCESS : Horizontally-averaged profile in sigma coordinate
 
