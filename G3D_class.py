@@ -10,7 +10,7 @@ import calendar
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from scipy import interpolate 
+#from scipy import interpolate 
 #from mpl_toolkits.basemap import Basemap
 
 class G3D(object): 
@@ -1744,8 +1744,10 @@ class G3D(object):
                     for i in range(self.DEN.shape[3]):
                         if ma.is_masked(self.DEN[t,self.ksurface,j,i]):
                             continue
-                        f = interpolate.interp1d(self.DEN[t,:,j,i], self.z[0,:,j,i], fill_value=np.nan, bounds_error=False )
-                        self.Z14_5[t,0,j,i]=f(14.5)
+              #          f = interpolate.interp1d(self.DEN[t,:,j,i], self.z[0,:,j,i], fill_value=np.nan, bounds_error=False )
+                        f = np.interp(14.5, self.DEN[t,:,j,i], self.z[0,:,j,i], left=np.nan, right=np.nan )
+                        #self.Z14_5[t,0,j,i]=f(14.5)
+                        self.Z14_5[t,0,j,i]=f
                         
             self.Z14_5=ma.masked_invalid(self.Z14_5)
 
