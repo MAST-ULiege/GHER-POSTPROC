@@ -59,14 +59,25 @@ class N3D(G3D_class.G3D):
         try:
             self.verbose      = config['VERBOSE']
             self.sparemem     = config['SPAREMEM']
-
     # instantiate the dictionnary with model parameters
             self.initparams(config['PARAMFILE'])
     # needs an update based on namelist (model specific)
             self.updateparams(config['CONFIGFILE'])
-
         except: 
             print('some available setup info not found in the yaml file, check N3D_class.py: _init_, if needed')
+
+
+        self.timevarname  = config['TIMEVARNAME'] if ('TIMEVARNAME' in config) else 'time_counter'
+        self.timedimname  = config['TIMEDIMNAME'] if ('TIMEDIMNAME' in config) else 'time_counter'
+        self.depthvarname = config['DEPTHVARNAME'] if ('DEPTHVARNAME' in config) else 'deptht'
+        self.depthdimname = config['DEPTHDIMNAME'] if ('DEPTHDIMNAME' in config) else 'deptht'
+        self.latvarname   = config['LATVARNAME'] if ('LATVARNAME' in config) else 'nav_lat'
+        self.latdimname   = config['LATDIMNAME'] if ('LATDIMNAME' in config) else 'y'
+        self.lonvarname   = config['LONVARNAME'] if ('LONVARNAME' in config) else 'nav_lon'
+        self.londimname   = config['LONDIMNAME'] if ('LONDIMNAME' in config) else 'x'
+
+
+
 
 ###################################################################### 
 

@@ -293,7 +293,7 @@ class G3D(object):
     def gstore(self,varname, ztab=None, dtab=None):
         try:
             with Dataset(self.diagfile,'r') as nc:
-                lon= nc.variables['time'][:]
+                lon= nc.variables[self.timevarname][:]
         except:
             # -> the diag file does not exist.
             # We should create one with same dimension and attributes
@@ -308,7 +308,7 @@ class G3D(object):
 
                 for name, variable in inf.variables.items():
                     # take out the variable you don't want
-                    if name  in ['longitudes','lattitude','depth','level']: # AC MAY2019 I removed 'time' from this list, to let user decide the file partition in output
+                    if name  in [self.londimname, self.latdimname, self.timedimname, self.depthdimname]: # AC MAY2019 I removed 'time' from this list, to let user decide the file partition in output
                         x = diagf.createVariable(name, variable.datatype, variable.dimensions)
                         diagf.variables[name][:] = inf.variables[name][:]
 
@@ -318,18 +318,25 @@ class G3D(object):
 
         with Dataset(self.diagfile,'a') as nc:
             try:
-                nc.createDimension('time', None)
-                tv=nc.createVariable('time' , np.float32, 'time')
-                nc.variables['time'][:]= [(t-dt.datetime(1900,01,01,00,00,00)).total_seconds() for t in self.dates]        
+                nc.createDimension(self.timedimname, None)
+                tv=nc.createVariable(self.timevarname , np.float32, self.timedimname)
+                nc.variables[self.timevarname][:]= [(t-dt.datetime(1900,01,01,00,00,00)).total_seconds() for t in self.dates]        
                 tv.units='seconds since 1900-01-01 00:00:00'
-            except:
-                print('I guess time exists already for %s'%(self.diagfile))
+            except Exception as ee:
+                print('Error when attempting to create the time dimension %s in %s'%(self.timedimname,self.diagfile))
+                print(ee)
+            try:
+                nc.createDimension('singleton', 1)
+            except Exception as ee:
+                print('Error when attempting to create the time dimension %s in %s'%('singleton',self.diagfile))
+                print(ee)
+
             print('ndim : '+ str(ndim) )
             try:
                 if ndim==4:      # assuming here : time, level, lat,lon
-                    nc.createVariable(varname, np.float32, ('time',     'level', 'latitude', 'longitude'),zlib=True)
+                    nc.createVariable(varname, np.float32, (self.timevarname, self.depthdimname, self.latdimname, self.londimname),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
-                    nc.createVariable(varname, np.float32, ('time', 'singleton', 'latitude', 'longitude'),zlib=True)
+                    nc.createVariable(varname, np.float32, (self.timevarname, 'singleton', self.latdimname, self.londimname),zlib=True)
                 elif ((ndim == 2) and (ztab is not None)) :  # assuming here : time, ztab
                     print('I''m IN ZTAB')
                     try:
@@ -338,7 +345,7 @@ class G3D(object):
                         nc.createDimension('ztab', len(ztab))
                         nc.createVariable('ztab', np.float32, 'ztab')
                         nc.variables['ztab'][:] = ztab
-                    nc.createVariable(varname, np.float32, ('time', 'ztab'),zlib=True)
+                    nc.createVariable(varname, np.float32, (self.timevarname, 'ztab'),zlib=True)
                 elif ((ndim == 2) and (dtab is not None)) :  # assuming here : time, dtab
                     print('I''m IN DTAB')
                     try:
@@ -347,14 +354,23 @@ class G3D(object):
                         nc.createDimension('dtab', len(dtab))
                         nc.createVariable('dtab', np.float32, 'dtab')
                         nc.variables['dtab'][:] = dtab
-                    nc.createVariable(varname, np.float32, ('time', 'dtab'),zlib=True)
+                    nc.createVariable(varname, np.float32, (self.timevarname, 'dtab'),zlib=True)
                     
                 elif ndim == 1:
-                    nc.createVariable(varname, np.float32, ('time'),zlib=True)
-            except:
-                print ('Error.. Maybe '+varname+' already exists on '+self.diagfile+' ? \n I attempt to overwrite')
+                    nc.createVariable(varname, np.float32, (self.timevarname),zlib=True)
+            except  Exception as e :
+                print ('Error in gstore : ')
+                print(e)
+                print(' you attempted to write on ' + str(ndim) +' dimensions in ' +self.diagfile)
+                if ndim==4:
+                    print('Using : ' + self.timevarname + ',' +  self.depthdimname + ', latitude, longitude')
+                elif ndim==3:
+                    print('Using : ' + self.timevarname + ', singleton, latitude, longitude')
+#                else : 
+#                    print('Using 
+                print ('Maybe '+varname+' already exists on '+self.diagfile+' ? \n I attempt to overwrite')
+                
 
-            
             exec('nc.variables[varname][:]=self.'+varname)
                 
 ######################################################################
@@ -1709,4 +1725,20 @@ class G3D(object):
         else:
             print('NEED TO BE COMPLETED : instance_N2loss')
 
+
+
+    def instance_Z14_5(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('DEN')
+            self.Z14_5 = np.ones_like(self.DEN[:,self.ksurface])[:,None,:,:]
+            self.Z14_5.mask = self.DEN[:,self.ksurface].mask[:,None,:,:]
+
+
+            for t in range(len(self.dates)):
+                for i in range(self.DEN.shape[2]):
+                    for j in range(self.DEN.shape[3]):
+                        if ma.is_masked(self.DEN[t,self.ksurface,i,j]):
+                            continue
+                        f = interp1d(self.DEN[0,:,i,j], self.z[:,i,j] )
+                        self.Z14_5[t,0,i,j]=f(14.5)
 
