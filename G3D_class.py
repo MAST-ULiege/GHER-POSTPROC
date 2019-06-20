@@ -10,6 +10,7 @@ import calendar
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from scipy import interpolate 
 #from mpl_toolkits.basemap import Basemap
 
 class G3D(object): 
@@ -218,6 +219,7 @@ class G3D(object):
                     print(' Strange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
                     
         except: 
+            print( '\n %s not found in %s'%(varname,self.infile))
             try:
                 # looking for the variable in the diag file (created by function gstore)
                 with Dataset(self.diagfile,'r') as nc:
@@ -236,9 +238,10 @@ class G3D(object):
 
 
             except Exception as e: 
+                print( '\n %s not found in %s'%(varname,self.diagfile))
                 # looking for an instance function allowing to define this variable
                 print(e)
-                print( '\n %s not found in %s'%(varname,self.infile))
+                
                 print( '-> Calling')
                 #try:
                 print('     self.instance_'+varname+'(i='+str(i)+',j='+str(j)+',k='+str(k)+')')
@@ -308,7 +311,7 @@ class G3D(object):
 
                 for name, variable in inf.variables.items():
                     # take out the variable you don't want
-                    if name  in [self.londimname, self.latdimname, self.timedimname, self.depthdimname]: # AC MAY2019 I removed 'time' from this list, to let user decide the file partition in output
+                    if name  in [self.depthdimname, self.latdimname, self.londimname]: # AC MAY2019 I removed 'time' from this list, to let user decide the file partition in output
                         x = diagf.createVariable(name, variable.datatype, variable.dimensions)
                         diagf.variables[name][:] = inf.variables[name][:]
 
@@ -328,7 +331,7 @@ class G3D(object):
             try:
                 nc.createDimension('singleton', 1)
             except Exception as ee:
-                print('Error when attempting to create the time dimension %s in %s'%('singleton',self.diagfile))
+                print('Error when attempting to create the singleton dimension %s in %s'%('singleton',self.diagfile))
                 print(ee)
 
             print('ndim : '+ str(ndim) )
@@ -337,6 +340,7 @@ class G3D(object):
                     nc.createVariable(varname, np.float32, (self.timevarname, self.depthdimname, self.latdimname, self.londimname),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
                     nc.createVariable(varname, np.float32, (self.timevarname, 'singleton', self.latdimname, self.londimname),zlib=True)
+                    
                 elif ((ndim == 2) and (ztab is not None)) :  # assuming here : time, ztab
                     print('I''m IN ZTAB')
                     try:
@@ -479,6 +483,7 @@ class G3D(object):
             
     def testvar(self,varname,doload=True,i=None,j=None, k=None):
         try:
+            print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             if (i is None) and (j is None) and (k is None):
                 exec('self.'+varname)
             elif (k is not None):
@@ -487,10 +492,10 @@ class G3D(object):
                 exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
-            print('%s currently not loaded '%(varname))
+            print('Not Loaded: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             isthere=False
             if doload:
-                print ('Loading %s for i=%s, j=%s, k=%s'%(varname,i,j,k))
+                print ('Loading v=%s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
                 self.gload(varname,i=i,j=j,k=k)
                 isthere=True
 
@@ -1253,26 +1258,27 @@ class G3D(object):
 # VARIABLE : Density
 
     def instance_DEN(self,i=None,j=None,k=None):
-
         self.testz()
         tlat=np.tile(self.lat, (self.z.shape[1],self.z.shape[3],1))
         tlat=np.transpose(tlat,(0,2,1))
         tlon=np.tile(self.lon, (self.z.shape[1], self.z.shape[2],1))
 
         if (i is None) and (j is None) and (k is None):
-            p  = gsw.p_from_z(self.z,tlat)
+            p  = gsw.p_from_z(-np.abs(self.z),tlat)[0]  # Normally Z should be negative undersea.. but let's be sure. 
             self.testvar('SAL')
             self.testvar('TEM')
             self.DEN = ma.empty(self.SAL.shape)
-            for t in xrange(self.SAL.shape[0]):
+            for t in range(len(self.dates)):
                 SA = gsw.SA_from_SP(self.SAL[t],p,tlon,tlat)
-                self.DEN[t]=gsw.rho(SA,self.TEM[t],p)
-            
-            if False:
-                self.gstore('DEN')
+                #self.DEN[t]=gsw.rho(SA,self.TEM[t],p)
+                PT = gsw.pt_from_t(SA,self.TEM[t],p)
+                CT = gsw.CT_from_pt(SA,PT)
+                self.DEN[t]=gsw.sigma0(SA,CT)
+                
 
-            del self.SAL
-            del self.TEM
+            if self.sparemem:
+                del self.SAL
+                del self.TEM
 
         elif (i is not None) and (j is not None) and (k is None):
             # need to be computed only for one profile
@@ -1296,8 +1302,6 @@ class G3D(object):
                 DENloc=gsw.rho(SA,TEMloc[t],p)
                 exec('self.DENi'+str(i)+'j'+str(j)+'=DENloc')
 
-            if False:
-                self.gstore('DEN')
 
 ############################################################################
 # VARIABLE Sea Bottom Salinity
@@ -1358,7 +1362,7 @@ class G3D(object):
 
     def instance_SST(self, i=None,j=None, k=None):
         if (i is None) and (j is None) :
-            self.gload('TEM',k='surface') 
+            self.testvar('TEM',k='surface') 
             self.SST=self.TEMksurface
             del self.TEMksurface            
         else:
@@ -1730,15 +1734,18 @@ class G3D(object):
     def instance_Z14_5(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.testvar('DEN')
-            self.Z14_5 = np.ones_like(self.DEN[:,self.ksurface])[:,None,:,:]
-            self.Z14_5.mask = self.DEN[:,self.ksurface].mask[:,None,:,:]
+            #self.Z14_5 = np.ones_like(self.DEN[:,self.ksurface])[:,None,:,:]
+            #self.Z14_5.mask = self.DEN[:,self.ksurface].mask[:,None,:,:]
+            self.Z14_5 = ma.empty_like(self.DEN[:,self.ksurface])[:,None,:,:]
 
 
             for t in range(len(self.dates)):
-                for i in range(self.DEN.shape[2]):
-                    for j in range(self.DEN.shape[3]):
-                        if ma.is_masked(self.DEN[t,self.ksurface,i,j]):
+                for j in range(self.DEN.shape[2]):
+                    for i in range(self.DEN.shape[3]):
+                        if ma.is_masked(self.DEN[t,self.ksurface,j,i]):
                             continue
-                        f = interp1d(self.DEN[0,:,i,j], self.z[:,i,j] )
-                        self.Z14_5[t,0,i,j]=f(14.5)
+                        f = interpolate.interp1d(self.DEN[t,:,j,i], self.z[0,:,j,i], fill_value=np.nan, bounds_error=False )
+                        self.Z14_5[t,0,j,i]=f(14.5)
+                        
+            self.Z14_5=ma.masked_invalid(self.Z14_5)
 

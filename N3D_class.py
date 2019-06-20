@@ -155,7 +155,7 @@ class N3D(G3D_class.G3D):
             self.instance_z()
 #####################################################################
 # UTILITY : test variable
-    def testvar(self,varname, doload=True,i=None,j=None, k=None):
+    def testvar(self,varname,doload=True,i=None,j=None, k=None, verbose=True):
         try:
             print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             if (i is None) and (j is None) and (k is None):
@@ -167,23 +167,32 @@ class N3D(G3D_class.G3D):
                 exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
-            print('Not there: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
+            print('Not Loaded: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             isthere=False
             if doload:
-                print ('Loading v=%s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
-                if (k is not None) and self.testvar(varname):
-                    if (k=='bottom'):
-                        exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
-                        for i in range(self.bat.shape[2]):
-                            for j in range(self.bat.shape[3]):
-                                if (not ma.is_masked(self.kbottom[0,0,i,j])):
-                                    exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
+                if (any([x is not None for x in [i,j,k]])) and self.testvar(varname, doload=False, verbose=False):
+                    print ('Getting v=%s for i :%s, j:%s, k:%s from the complete loaded %s'%(varname, i,j,k,varname) )
+                    if (k is not None) and (i is None) and (j is None):
+                        if (k=='bottom'):
+                            exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                            for i in range(self.bat.shape[2]):  
+                                for j in range(self.bat.shape[3]):
+                                    if (not ma.is_masked(self.kbottom[0,0,i,j])):
+                                        exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
+                        elif (k=='surface'):
+                            exec('self.'+varname+'ksurface=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                            exec('self.'+varname+'ksurface=self.'+varname+'[:,self.ksurface][:,None,:,:]')
+                        else: 
+                            exec('self.'+varname+'k'+str(k)+'=self.'+varname+'[:,k])[:,None,:,:]')
+                    if (i is not None) and (j is not None):
+                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'=self.'+varname+'[:,:,j,i])[:,:,None,None]')
                 else:
                     self.gload(varname,i=i,j=j,k=k)
-                isthere=True
+                    isthere=True
+                    
+                # NEMO NEEDS EXTRA MASKING
                 if (i is None) and (j is None):
                     self.testz()
-                    # NEMO NEEDS EXTRA MASKING
                     print('remasking ' +varname)
                     exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
                     # This ensures that all variables comes with 4 dimension, eventually with length=1
