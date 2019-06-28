@@ -74,9 +74,22 @@ class G3D(object):
     # instantiate the dictionnary with model parameters
 #        try: 
         self.initparams(config['PARAMFILE'])
+	
+	self.verbose      = config['VERBOSE'] if ('VERBOSE' in config) else True
+        self.sparemem     = config['SPAREMEM'] if ('SPAREMEM' in config) else False
 
- #       except:
-  #      print('I did not found any model paramter file')
+
+        self.timevarname  = config['TIMEVARNAME'] if ('TIMEVARNAME' in config) else 'time'
+        self.timedimname  = config['TIMEDIMNAME'] if ('TIMEDIMNAME' in config) else 'time'
+        self.depthvarname = config['DEPTHVARNAME'] if ('DEPTHVARNAME' in config) else 'level'
+        self.depthdimname = config['DEPTHDIMNAME'] if ('DEPTHDIMNAME' in config) else 'level'
+        self.latvarname   = config['LATVARNAME'] if ('LATVARNAME' in config) else 'latitude'
+        self.latdimname   = config['LATDIMNAME'] if ('LATDIMNAME' in config) else 'latitude'
+        self.lonvarname   = config['LONVARNAME'] if ('LONVARNAME' in config) else 'longitude'
+        self.londimname   = config['LONDIMNAME'] if ('LONDIMNAME' in config) else 'longitude'
+
+
+
 
 ######################################################################
 # UTILITY : Instantiate a dictionary with model parameter values. 
