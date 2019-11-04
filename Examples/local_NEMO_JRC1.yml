@@ -1,0 +1,19 @@
+# See <http://yaml.org/> and <http://pyyaml.org/> for rules on editing this file.
+
+MODEL   : NEMO
+BATFILE : './config_files_004/mesh_mask.nc_31levels'
+PLOTDIR : './Plots_JRC2/'
+PARAMFILE : './config_files_004/par_BAMHBI.h90'
+CONFIGFILE : './config_files_004/namelist_top_cfg'
+RESULTDIR : '/SCRATCH/acad/bsmfc/Nemo3.6/NEMOGCM/CONFIG/BSFS_BIO/MYP/tentatives/003_jrc/002-mtfr/'
+DIAGDIR :   './diags_JRC2/'
+VERBOSE : True
+SPAREMEM : True
+TIMDIMNAME  : 'time_counter'
+TIMEVARNAME : 'time_counter'
+DEPTHDIMNAME : 'deptht'
+DEPTHVARNAME : 'deptht' 
+LATDIMNAME   : 'y'
+LATVARNAME   : 'nav_lat'
+LONDIMNAME   : 'x'
+LONVARNAME   : 'nav_lon'
