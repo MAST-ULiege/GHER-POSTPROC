@@ -304,13 +304,14 @@ class G3D(object):
 ######################################################################
 # UTILITY : STORE
 #
-# create a copy of the file "in.nc" as "in.ext.nc" copy dimension and attributes and add the requested value
+# create a copy of the file "in.nc" as "in.diag.nc" copy dimension and attributes and add the requested value
          
     def gstore(self,varname, ztab=None, dtab=None):
-        try:
-            with Dataset(self.diagfile,'r') as nc:
-                lon= nc.variables[self.timevarname][:]
-        except:
+        if os.path.isfile(self.diagfile):
+            # with Dataset(self.diagfile,'r') as nc:
+            # lon= nc.variables[self.timevarname][:]
+            print('Found existing diagfile: %s'%(self.diagfile))
+        else: #except:
             # -> the diag file does not exist.
             # We should create one with same dimension and attributes
             with Dataset(self.infile,'r') as inf, Dataset(self.diagfile,'w') as diagf:
