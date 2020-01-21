@@ -306,7 +306,9 @@ class G3D(object):
 #
 # create a copy of the file "in.nc" as "in.diag.nc" copy dimension and attributes and add the requested value
          
-    def gstore(self,varname, ztab=None, dtab=None):
+    def gstore(self,varname, depth=None, dtab=None):
+        exec('ndim=len(self.'+varname+'.squeeze().shape)')
+
         if os.path.isfile(self.diagfile):
             # with Dataset(self.diagfile,'r') as nc:
             # lon= nc.variables[self.timevarname][:]
@@ -320,14 +322,23 @@ class G3D(object):
                     diagf.setncattr(name, inf.getncattr(name))
 
                 #copy dimensions
+                #if ndim==4: # assuming here : time, level, lat,lon
                 for name, dimension in inf.dimensions.items():
-                    diagf.createDimension(name, len(dimension) if not dimension.isunlimited() else None)
+                    if self.verbose: print ('\n XXX '+name+'  '+str(dimension)) 
+                    if ((ndim==2) and (name in [self.latdimname, self.londimname])):
+                        diagf.createDimension(name, 1)
+                    else:
+                        diagf.createDimension(name, len(dimension) if not dimension.isunlimited() else None)
 
                 for name, variable in inf.variables.items():
                     # take out the variable you don't want
                     if name  in [self.depthdimname, self.latdimname, self.londimname]: # AC MAY2019 I removed 'time' from this list, to let user decide the file partition in output
-                        x = diagf.createVariable(name, variable.datatype, variable.dimensions)
-                        diagf.variables[name][:] = inf.variables[name][:]
+                        if ((ndim==2) and (name in [self.latdimname, self.londimname])):
+                            x = diagf.createVariable(name, variable.datatype, variable.dimensions)
+                            exec('diagf.variables[name][:] = self.'+name)
+                        else:
+                            x = diagf.createVariable(name, variable.datatype, variable.dimensions)
+                            diagf.variables[name][:] = inf.variables[name][:]
 
         exec('ndim=len(self.'+varname+'.squeeze().shape)')
         print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.diagfile)
@@ -355,15 +366,15 @@ class G3D(object):
                 elif ndim == 3:  # assuming here : time, lat,lon 
                     nc.createVariable(varname, np.float32, (self.timevarname, 'singleton', self.latdimname, self.londimname),zlib=True)
                     
-                elif ((ndim == 2) and (ztab is not None)) :  # assuming here : time, ztab
-                    print('I''m IN ZTAB')
+                elif ((ndim == 2) and (depth is not None)) :  # assuming here : time, depth
+                    if self.verbose: print('I''m in Depth option for gstore 2D')
                     try:
-                        nc.variables['ztab'][:]
+                        nc.variables['depth'][:]
                     except:
-                        nc.createDimension('ztab', len(ztab))
-                        nc.createVariable('ztab', np.float32, 'ztab')
-                        nc.variables['ztab'][:] = ztab
-                    nc.createVariable(varname, np.float32, (self.timevarname, 'ztab'),zlib=True)
+#                        nc.createDimension('depth', len(ztab))
+                        nc.createVariable('depth', np.float32, 'level')
+                        nc.variables['depth'][:] = depth
+                    nc.createVariable(varname, np.float32, (self.timevarname,'level'), zlib=True)
                 elif ((ndim == 2) and (dtab is not None)) :  # assuming here : time, dtab
                     print('I''m IN DTAB')
                     try:
