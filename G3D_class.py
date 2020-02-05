@@ -774,7 +774,7 @@ class G3D(object):
         for t in xrange(len(self.time)):
             vint[t]=ma.sum(loc[t]*self.dz[0],0)
         
-        return vint
+        return vint[:,None,:,:]
 
 #########################################################################                                                                                                                                          
 # PROCESS : Vertical Mean
@@ -794,7 +794,7 @@ class G3D(object):
             vol      = ma.sum (        mdz , 0)
             vmean[t] = vmean[t]/vol
 
-        return vmean
+        return vmean[:,None,:,:]
         
 #########################################################################                                                                                                                                          
 # PROCESS : Vertical Mean - Isopycnals
@@ -816,7 +816,7 @@ class G3D(object):
             vol      = ma.sum ( ma.masked_where(mask3D,self.dz), 0)
             vmean[t] = vmeanloc/vol
 
-        return vmean        
+        return vmean[:,None,:,:]
         
 ############################################################################
 # PROCESS : Build Climatology

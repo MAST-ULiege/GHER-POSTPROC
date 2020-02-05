@@ -194,6 +194,8 @@ class N3D(G3D_class.G3D):
                 if (i is None) and (j is None):
                     self.testz()
                     print('remasking ' +varname)
+                    if (k is not None):
+                        varname=varname+'k'+k
                     exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
                     # This ensures that all variables comes with 4 dimension, eventually with length=1
                     exec('locshape=self.'+varname+'.shape')
@@ -204,7 +206,11 @@ class N3D(G3D_class.G3D):
                             print('missing dim in testvar, for %s of dimensions %s'%(varname,locshape))
                     exec('nt=self.'+varname+'.shape[0]')
                     for t in range(nt):
+                    #    if (k is not None):
+                    #        exec('self.'+varname+'k'+k+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'k'+k+'.shape[1]]==0, self.'+varname+'k'+k+'[t])')
+                    #    else:
                         exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')
+
                 #elif (k is not None):
                 #    print('remasking ' +varname+str(k))
 #                else:
