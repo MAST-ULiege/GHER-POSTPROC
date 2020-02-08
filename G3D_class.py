@@ -743,6 +743,8 @@ class G3D(object):
         zloc=self.z[0,:,j,i]
         if c3=='bottom':
             k=self.kbottom
+        elif c3=='surface':
+            k=self.ksurface
         else: 
             k=(np.abs(zloc-c3)).argmin()
         if isvar:
@@ -917,8 +919,8 @@ class G3D(object):
 
             aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].set_title(calendar.month_name[monthi])
 
-        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.1, right=0.95, left=0.05, top=0.95)
-        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.2, right=0.95, left=0.05, top=0.95)
+        cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])
         cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],10),cax=cbar_ax, orientation="horizontal")
         cbar.set_label(varname)
 
@@ -1112,8 +1114,8 @@ class G3D(object):
                 if not (yi==(cols-1)):
                     aaxes[yi,si].get_xaxis().set_visible(False)
                  
-        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.1, right=0.95, left=0.05, top=0.95)
-        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.2, right=0.95, left=0.05, top=0.95)
+        cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])
         cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],10),cax=cbar_ax, orientation="horizontal")
         cbar.set_label(varname)
 
@@ -1221,11 +1223,15 @@ class G3D(object):
 ############################################################################
 # PLOTS : Plot Time Series
 
-    def plotseries (self, varname, figout=None, title=None, Clim=None):
+    def plotseries (self, varnames, figout=None, title=None, Clim=None):
+        if len(varnames)>1:
+            varname=varnames[0]
+        else:
+            varname=varnames
         if figout==None:
             figout=varname
         exec('loc=self.'+varname)
-        if Clim==None: 
+        if Clim==None:  
             Clim=[loc.min(),loc.max()]
 
         locator = mdates.AutoDateLocator()
@@ -1236,7 +1242,10 @@ class G3D(object):
         ax.xaxis_date()
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formator)
-        cs=plt.plot(self.dates, loc)
+        for v in varnames:
+            exec('loc=self.'+v)
+            cs=plt.plot(self.dates, loc, label=v)
+        plt.legend()
         plt.title(title)
         fig.savefig(self.figoutputdir+'TimeSeries_'+figout+'.png')
         plt.close()
