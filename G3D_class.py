@@ -1,4 +1,6 @@
 import numpy as np
+
+
 import numpy.ma as ma
 from netCDF4 import Dataset
 import gsw
@@ -181,23 +183,25 @@ class G3D(object):
 # TODO simplify the code to avoid copying lines uselessly
 # TODO 
 
-    def gload(self,varname,k=None,i=None,j=None):
+    def gload(self,varname,i=None,j=None, k=None):
+        if self.verbose: print( 'GLoading '+ (varname) + ' for i:'+str(i)+', j:'+str(j)+' ,k:'+str(k))
         try:
             # looking for the variable in the original file
             with Dataset(self.infile,'r') as nc:
                 if  (k is None) and (i is None) and (j is None):
+                    #Full Load
                     l=nc.variables[varname][:]
                     if (len(l.shape)==3):
-                        print(varname + ' is 2+1D')
-                        loc=nc.variables[varname][:]
-                        exec('self.'+varname+ '= loc[:,None,:,:]')
+                        if self.verbose: print(varname + ' is 2+1D')
+#                        loc=nc.variables[varname][:]
+                        exec('self.'+varname+ '= l[:,None,:,:]')
                     else:
-                        exec('self.'+varname+ '= nc.variables[varname][:]')
-
+                        if self.verbose: print(varname + ' is 3+1D')
+                        exec('self.'+varname+ '= l')#nc.variables[varname][:]')
                     print( 'Just loaded '+ (varname) + ' full')
                 elif (k is None) and (i is not None) and (j is not None):
-                    print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
-#                    try:
+                    if self.verbose: print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+#                   This is probably costing a lot of ressources uselessly - AC Mar2020
                     l=nc.variables[varname][:]
                     if (len(l.shape)==4):
                         print(varname + 'varname is 3+1D') 
@@ -207,9 +211,6 @@ class G3D(object):
                         exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= l[:,None,j,i]')#nc.variables[varname][:,:,j,i]')
                     else:
                         print('cannot understand diomension of %s'%varname)
-
-                        
-
                     print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                 elif (k is not None) and (i is None) and (j is None):
                     if (k=="surface"):
@@ -219,15 +220,25 @@ class G3D(object):
                         self.testvar(varname)
                         exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
                         print('  SWEET  ')
-                        for i in range(self.bat.shape[2]):
-                            for j in range(self.bat.shape[3]):
-                                if (not ma.is_masked(self.kbottom[0,0,i,j])):
-                                    exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
+                        for jj in range(self.bat.shape[2]):
+                            for ii in range(self.bat.shape[3]):
+                                if (not ma.is_masked(self.kbottom[0,0,jj,ii])):
+                                    exec('self.'+varname+'kbottom[:,0,jj,ii]= self.'+varname+'[:,self.kbottom[0,0,jj,ii],jj,ii]')
                         print(' honey ') 
                     else:                        
                         exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
                         exec('self.'+varname+'k'+str(k)+'=self.'+varname+'k'+str(k)+'[:,None,:,:]')
                     print( 'Just loaded '+ (varname) +' for k:'+str(k))
+                elif (k is not None) and (i is not None) and (j is not None):
+#                    l=nc.variables[varname][:]
+#                    if (len(l.shape)==3):
+#                        if self.verbose: print(varname + ' is 2+1D')
+#                        loc=nc.variables[varname][:] 
+#                        exec('self.'+varname+ '= l[:,None,j,i]')
+#                    else:
+#                        if self.verbose: print(varname + ' is 3+1D')
+                    exec('self.'+varname+'i'+str(i)+'j'+str(j)+'k'+str(k)+'=nc.variables[varname][:,k,j,i]')
+                    print( 'Just loaded '+ (varname) +' for i:'+str(i)+' and j:'+str(j)+' and k:'+str(k))
                 else:
                     print(' Strange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
                     
@@ -750,14 +761,14 @@ class G3D(object):
         if isvar:
             # for some reason the 4d variable is already loaded in memory
             exec('lloc=self.'+varname)
-            lloc=lloc[:,:,j,i]
+            lloc=lloc[:,k,j,i]
         else:
             # It's not loaded, but we'll load only what we need
-            self.gload(varname,i=i,j=j)
-            exec('lloc=self.'+varname+'i'+str(i)+'j'+str(j))
-        if lloc.shape[1]==1:
-            k=0
-        lloc=lloc[:,k]
+            self.gload(varname,i=i,j=j,k=k)
+            exec('lloc=self.'+varname+'i'+str(i)+'j'+str(j)+'k'+str(k))
+#        if lloc.shape[1]==1:
+#            k=0
+#        lloc=lloc[:,k]
 
         return lloc
 
@@ -776,7 +787,7 @@ class G3D(object):
         for t in xrange(len(self.time)):
             vint[t]=ma.sum(loc[t]*self.dz[0],0)
         
-        return vint[:,None,:,:]
+        return vint # [:,None,:,:]
 
 #########################################################################                                                                                                                                          
 # PROCESS : Vertical Mean
@@ -788,7 +799,7 @@ class G3D(object):
         self.testtime()
 
         exec('loc=self.'+varname)
-        vmean=ma.empty( (loc.shape[0],loc.shape[2],loc.shape[3]) )
+        vmean=ma.empty( (loc.shape[0],1, loc.shape[2],loc.shape[3]) )
 
         mdz = ma.masked_where( (self.z[0]>zsup) | (self.z[0]<zinf) ,self.dz[0])
         for t in xrange(len(self.dates)):
@@ -796,7 +807,7 @@ class G3D(object):
             vol      = ma.sum (        mdz , 0)
             vmean[t] = vmean[t]/vol
 
-        return vmean[:,None,:,:]
+        return vmean
         
 #########################################################################                                                                                                                                          
 # PROCESS : Vertical Mean - Isopycnals
@@ -1224,7 +1235,7 @@ class G3D(object):
 # PLOTS : Plot Time Series
 
     def plotseries (self, varnames, figout=None, title=None, Clim=None):
-        if len(varnames)>1:
+        if isinstance(varnames,list):
             varname=varnames[0]
         else:
             varname=varnames

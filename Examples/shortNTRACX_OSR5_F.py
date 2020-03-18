@@ -45,6 +45,8 @@ if ymlfile is None:
 
 mlist = N3D_class.FullLoad(ymlfile)
 
+mlist=mlist[:10]
+
 for mm in mlist:
     Ni  = N3D_class.N3D(mm,ymlfile)
 

@@ -45,13 +45,12 @@ if ymlfile is None:
 
 mlist = N3D_class.FullLoad(ymlfile)
 
+#mlist=mlist[:10]
+
 for mm in mlist:
     Ni  = N3D_class.N3D(mm,ymlfile)
 
     NmaskDS= (Ni.bat<120 ) & ~(Ni.bat.mask)  # Mask should be True where masked
-    Ni.testvar('totN')
-    Ni.vitN  = Ni.vertint('totN')
-    Ni.aptN  = Ni.avgprofileSIGMA(varname='totN',maskin=NmaskDS)
     Ni.viNOS = Ni.vertint('NOS')
     Ni.apNOS = Ni.avgprofileSIGMA(varname='NOS',maskin=NmaskDS)
     Ni.viNHS = Ni.vertint('NHS')
@@ -68,13 +67,11 @@ for mm in mlist:
     else:
         N.dates      = ma.append(N.dates   , Ni.dates,0)
         N.time       = ma.append(N.time    , Ni.time,0)
-        N.aptN       = ma.append(N.aptN    , Ni.aptN,0)
         N.apNOS      = ma.append(N.apNOS    , Ni.apNOS,0)
         N.apNHS      = ma.append(N.apNHS    , Ni.apNHS,0)
         N.apDEN      = ma.append(N.apDEN    , Ni.apDEN,0)
         N.apAMA      = ma.append(N.apAMA    , Ni.apAMA,0)
  #       N.apOXN      = ma.append(N.apOXN    , Ni.apOXN,0)
-        N.vitN       = ma.append(N.vitN     , Ni.vitN,0)
         N.viNOS      = ma.append(N.viNOS     , Ni.viNOS,0)
         N.viNHS      = ma.append(N.viNHS     , Ni.viNHS,0)
         N.viAMA      = ma.append(N.viAMA     , Ni.viAMA,0)
@@ -86,11 +83,14 @@ for mm in mlist:
 
 N.timeclean()
 
-for v in ['tN','NOS','NHS','DEN','AMA']:#,'OXN']:
+for v in ['NOS','NHS','DEN','AMA']:#,'OXN']:
     N.plotprofile('ap'+v,z=-N.z[0,:,0,0])
 #    N.makeclim('vi'+v)
 #    N.mapMonthlyClim('vi'+v,figsuffix='SHELF',cmapname='haline', subdomain="NWS")
 #    N.mapMonthlyClim('vi'+v,figsuffix='WHOLE',cmapname='haline')
 #    N.mapStrip('vi'+v,figsuffix='_D',daysbetween=30,diff=True)
+
+for v in ['NOS','NHS','DEN','AMA']:
     N.SeasonStrip('vi'+v)
+
 

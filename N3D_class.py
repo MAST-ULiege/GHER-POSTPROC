@@ -5,13 +5,44 @@ import gsw
 import yaml
 import os.path
 import datetime as dt
-
 import G3D_class
+import glob
+
+######################################################################
+
+def FullLoad(YAML_FILE = 'local.yml', dstring='1d'):
+    try:
+        print("\n Full Load from YAML file: %s" % YAML_FILE)
+        with open(YAML_FILE, 'r') as stream:
+                config = yaml.load(stream)
+        resultdir=config['RESULTDIR']
+        dstring  =config['DSTRING'] 
+    except Exception:
+        print("".join(("\n Error in FullLoad : A file called local.yml should be present with RESULTDIR (repertory with model ouptuts) and DSTRING (eg. '1m' or '1d') values","'\n")))
+        
+    # Raise error if RESULTDIR or DSTRING is not present
+
+    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*ptrc_T*.nc")]
+
+    mlist.sort()
+
+    mlist=[m.replace(resultdir,'') for m in mlist]
+# The following might be usefull if one want to predefine which files and which time indexes sould be considered, instead of processing and filtering afterwards
+#    for mm in mlist:
+#        Gl  = N3D_class.N3D(mm,'local_NEMO_OSR5c.yml', instancebat=False)
+#        if mm==mlist[0]:
+#            Ga=Gl
+#        else:
+#            Ga.dates = ma.append(Ga.dates,Gl.dates,0)
+
+    return(mlist)
+#    print(mlist)
+
+######################################################################
 
 class N3D(G3D_class.G3D): 
     '''This is a class for NEMO model outputs exploration. It is based on G3D class but overides specific methods (for z, lon, lat definitions)'''
-######################################################################
-    def __init__(self,infile,YAML_FILE='local.yml'):
+    def __init__(self,infile,YAML_FILE='local.yml', instancebat=True):
         print(' *******  \n')
         try:
 #            YAML_FILE = 'local.yml'
@@ -53,9 +84,6 @@ class N3D(G3D_class.G3D):
         except:
             self.diagfile= self.infile[:-3]+".diag.nc"
 
-        self.instance_bat()
-        self.testtime()
-
         try:
             self.verbose      = config['VERBOSE']
             self.sparemem     = config['SPAREMEM']
@@ -66,6 +94,9 @@ class N3D(G3D_class.G3D):
         except: 
             print('some available setup info not found in the yaml file, check N3D_class.py: _init_, if needed')
 
+        if instancebat:
+            self.instance_bat()
+        self.testtime()
 
         self.timevarname  = config['TIMEVARNAME'] if ('TIMEVARNAME' in config) else 'time_counter'
         self.timedimname  = config['TIMEDIMNAME'] if ('TIMEDIMNAME' in config) else 'time_counter'
@@ -76,10 +107,21 @@ class N3D(G3D_class.G3D):
         self.lonvarname   = config['LONVARNAME'] if ('LONVARNAME' in config) else 'nav_lon'
         self.londimname   = config['LONDIMNAME'] if ('LONDIMNAME' in config) else 'x'
 
-
-
-
 ###################################################################### 
+# Ensure monotonic, non-redundant dates in self
+# All fields with valid time dimensions are reduced accordingly. 
+    def timeclean(self):
+        ld=list(self.dates)   
+        indx=[ld.index(i) for i in sorted(np.unique(self.dates))]
+        
+        otl = len(self.dates)
+        # list of array attributes of self  with valid time dimension 
+        bb  = [ a for a in self.__dict__  if isinstance(self.__getattribute__(a),np.ndarray) ]
+        bbb = [ b for b in bb if self.__getattribute__(b).shape[0]==otl]
+
+        for b in bbb:
+            print('Time-cleaning '+b)
+            self.__setattr__(b, self.__getattribute__(b)[indx])
 
 ######################################################################                                                                                                                                             
 # UTILITY : update param dictionnary with run-specific values                                                                                                                                                  

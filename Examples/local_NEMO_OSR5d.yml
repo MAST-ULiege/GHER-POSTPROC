@@ -1,0 +1,19 @@
+# See <http://yaml.org/> and <http://pyyaml.org/> for rules on editing this file.
+
+MODEL   : NEMO
+BATFILE : '/SCRATCH/acad/bsmfc/Nemo3.6/NEMOGCM/CONFIG/BSFS/GEO/mesh_mask_31levels.nc'
+PLOTDIR : './Plots_OSR5d/'
+PARAMFILE : './config_files_OSR5/par_BAMHBI.h90'
+CONFIGFILE : './config_files_OSR5/namelist_top_cfg'
+RESULTDIR : '/SCRATCH/acad/bsmfc/Nemo3.6/NEMOGCM/CONFIG/BSFS_MYP/EXP31/out_part1/'
+DIAGDIR :   './diags_OSR5d/'
+VERBOSE : True
+SPAREMEM : True
+TIMDIMNAME  : 'time_counter'
+TIMEVARNAME : 'time_counter'
+DEPTHDIMNAME : 'deptht'
+DEPTHVARNAME : 'deptht'
+LATDIMNAME   : 'y'
+LATVARNAME   : 'nav_lat'
+LONDIMNAME   : 'x'
+LONVARNAME   : 'nav_lon'

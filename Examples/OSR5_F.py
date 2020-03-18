@@ -17,20 +17,38 @@ import G3D_class
 import calendar
 import N3D_class
 
-firstyear=2005
-lastyear =2012
 
-# File list
-#mlist = [ 'BS_1d_'+str(y)+'0101_'+str(y)+'1231_ptrc_T_'+str(y)+format(m,'02')+'-'+str(y)+format(m,'02')+'.nc' for y in range(firstyear,lastyear+1) for m in range(1,13)]
+## ## ## ## ## ###  ## ## ## ## ## ###  ## ## ## ## ## ### 
+## Arguments Management ##
+import  getopt,sys
+ 
+arglist = sys.argv[1:]
+unixOptions = "y:"
+gnuOptions = ["yml="]
+try:
+    arguments, values = getopt.getopt(arglist, unixOptions, gnuOptions)
+except getopt.error as err:
+    # output error, and return with an error code                                                                                                                                                                  
+    print (str(err))
+    sys.exit(2)
 
-mlist = [ 'BS_1m_20050101_20071231_ptrc_T.nc','BS_1m_20080101_20121231_ptrc_T.nc']
+ymlfile   = None
+for a,v  in arguments:
+        if a in ("-y",'--yml'):
+            ymlfile = v
+
+if ymlfile is None:
+    print( 'Dude, I need some -y or --yml argument for the .yml file')
+    sys.exit()
+## ## ## ## ## ##### ## ## ## ## ###  ## ## ## ## ## ###         
+
+mlist = N3D_class.FullLoad(ymlfile)
 
 for mm in mlist:
-    G1  = N3D_class.N3D(mm,'local_NEMO_JRC1.yml')
+    G1  = N3D_class.N3D(mm,ymlfile)
     maskDS = (G1.bat>60) | (G1.bat.mask)
 
     G1.testvar('O2bottom')
-#    G1.testvar('pO2sat', k='bottom')
     del G1.DOX
 
     G1.O2bottom=G1.maskvar(G1.O2bottom,maskDS.squeeze())
@@ -40,8 +58,9 @@ for mm in mlist:
     else:
         G.dates     = ma.append(G.dates,    G1.dates   ,0)
         G.O2bottom  = ma.append(G.O2bottom, G1.O2bottom,0)
-#        G.pO2satkbottom  = ma.append(G.pO2satkbottom, G1.pO2satkbottom,0)
     del G1
+
+G.timeclean()
 
 G.makeclim('O2bottom')
 G.mapMonthlyClim('O2bottom',figsuffix='SHELF',cmapname='oxy', subdomain="NWS", Clim=[0,300])
@@ -49,9 +68,11 @@ G.mapMonthlyClim('O2bottom',figsuffix='SHELF',cmapname='oxy', subdomain="NWS", C
 #####################
 # Fig 1 Time series
 
+# HYPOXbottom is ones where bottom O2 is below threshold, zeros elsewhere.
 G.HYPOXbottom=ma.where(condition=G.O2bottom<60,x=1.0,y=0.0)
+# Spatial integration accounts for grid cell's dimension. 
 G.H=G.integratespatial('HYPOXbottom').squeeze()/1e6
-G.plotseries(varname='H',title = 'Area for [O2]<60 uM - [km2]')
+G.plotseries('H',title = 'Area for [O2]<60 uM - [km2]')
 
 #################################
 # Fig 2
@@ -85,16 +106,16 @@ fig.savefig(G.figoutputdir+'Harea_peryear.png')
 ################################################
 ## COMPUTE integrals (Capet et al. 2013)
 
-minyear = firstyear #np.min([ i.year for i in G.dates])
-maxyear = lastyear  #np.max([ i.year for i in G.dates])
+minyear = np.min([ i.year for i in G.dates])
+maxyear = np.max([ i.year for i in G.dates])
 
 maxApyear = np.zeros(maxyear-minyear+1)
 Hperyear  = np.zeros(maxyear-minyear+1)
-Hnormyear = np.zeros(maxyear-minyear+1)
+Hnormyear  = np.zeros(maxyear-minyear+1)
 Dperyear  = np.zeros(maxyear-minyear+1)
 
-## !! Assuming constant Time step !! TODO - update if needed
-timestepindays = float((G.dates[1]-G.dates[0]).days)+float((G.dates[1]-G.dates[0]).seconds)/86400 
+# timestepindays = float((G.dates[1]-G.dates[0]).seconds)/86400 # Asumming Constant time steps
+timestepindays = float((G.dates[1]-G.dates[0]).days)+float((G.dates[1]-G.dates[0]).seconds)/86400
 
 print('time step is %s days'%timestepindays)
 
