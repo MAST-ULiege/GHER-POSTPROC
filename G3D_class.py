@@ -1299,6 +1299,7 @@ class G3D(object):
             varname=varnames[0]
         else:
             varname=varnames
+            varnames=[varname]
         if figout==None:
             figout=varname
         exec('loc=self.'+varname)
@@ -1315,7 +1316,51 @@ class G3D(object):
         ax.xaxis.set_major_formatter(formator)
         for v in varnames:
             exec('loc=self.'+v)
-            cs=plt.plot(self.dates, loc, label=v)
+            cs=plt.plot(self.dates, loc, label=v, alpha=0.8)
+        plt.ylim(Clim)
+        plt.legend()
+        plt.title(title)
+        fig.savefig(self.figoutputdir+'TimeSeries_'+figout+'.png')
+        plt.close()
+
+############################################################################
+# PLOTS : Plot Time Series
+
+    def plotseriesMultipleRuns (self, varnames, G3Ds, Glabs=None, figout=None, title=None, Clim=None):
+        if isinstance(varnames,list):
+            varname=varnames[0]
+        else:
+            varname=varnames
+            varnames=[varname]
+        if figout==None:
+            figout=varname
+
+        if Clim==None:  
+            for r in range(len(G3Ds)):
+                exec('loc=G3Ds[r].'+varname)
+                Clim=[loc.min(),loc.max()]
+                if r==0:
+                    Climt=Clim
+                else:
+                    Climt[0]=min(Clim[0],Climt[0])
+                    Climt[1]=max(Clim[1],Climt[1])
+
+        if (len(G3Ds)>1) & (Glabs is None):
+            Glabs = ['run '+i for i in range(len(G3Ds))]
+
+        locator = mdates.AutoDateLocator()
+        formator = mdates.AutoDateFormatter(locator)
+        
+        fig=plt.figure(figsize=(10, 4))
+        ax=plt.subplot(1, 1, 1)
+        ax.xaxis_date()
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formator)
+        for v in varnames:
+            for r,G in enumerate(G3Ds):
+                exec('loc=G.'+v)
+                cs=plt.plot(G.dates, loc, label = v +'  '+Glabs[r], alpha=0.8)
+        plt.ylim(Climt)
         plt.legend()
         plt.title(title)
         fig.savefig(self.figoutputdir+'TimeSeries_'+figout+'.png')
@@ -1526,6 +1571,63 @@ class G3D(object):
 
         MLDloc[i,j]=f(d3+deltasig)
         return MLDloc
+
+############################################################################                                                                                                             
+# VARIABLE : Z20, cf Capet et al. 2016, Biogeosciences
+#
+    def instance_Z20(self, i=None,j=None,k=None):
+        self.testz()
+
+        if ( i is None) and (j is None):
+            self.testvar('DOX')
+            self.Z20 = self.DOX[:,self.ksurface].copy()[:,None,:,:]
+
+            for t in range(len(self.dates)):        
+                for i in xrange(self.Z20.shape[2]):
+                    for j in xrange(self.Z20.shape[3]):
+                        if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
+                            continue
+                        f = np.interp(20, self.DOX[t,::-1,i,j],self.z[0,::-1,i,j],left=np.nan, right=np.nan )
+                        self.Z20[t,0,i,j]=f
+
+        else:
+            self.testvar('DOX',i=i,j=j)
+            exec('ldox=self.DOXi'+i+'j'+j+'.squeeze()')
+            loc = ma.empty_like(ldox)
+
+            for t in range(len(self.dates)):
+                f = np.interp(20, ldox[::-1],self.z[0,::-1,i,j],left=np.nan, right=np.nan )
+
+        return f
+
+
+############################################################################                                                                                                             
+# VARIABLE : VOX, cf Capet et al. 2016, Biogeosciences
+    def instance_VOX(self, i=None,j=None,k=None):
+        self.testz()
+        self.testvar('DOX')
+        self.VOX = self.vertint('DOX')
+
+        return self.VOX
+
+############################################################################                                                                                                             
+# VARIABLE : R20, cf Capet et al. 2016, Biogeosciences
+    def instance_R20(self, i=None,j=None,k=None):
+        self.testz()
+        self.testvar('DOX')
+        self.testvar('DEN')
+
+        self.R20 = self.DOX[:,self.ksurface].copy()[:,None,:,:]
+
+        for t in range(len(self.dates)):        
+            for i in xrange(self.R20.shape[2]):
+                for j in xrange(self.R20.shape[3]):
+                    if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
+                        continue
+                    f = np.interp(20, self.DOX[t,::-1,i,j],self.DEN[0,::-1,i,j],left=np.nan, right=np.nan )
+                    self.R20[t,0,i,j]=f
+
+        return self.R20
 
 ###########################################################################
 
