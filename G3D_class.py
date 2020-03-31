@@ -14,6 +14,40 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 #from scipy import interpolate 
 #from mpl_toolkits.basemap import Basemap
+import glob
+
+
+def FullLoad(YAML_FILE = 'local.yml', dstring=''):
+    try:
+        print("\n Full Load from YAML file: %s" % YAML_FILE)
+        with open(YAML_FILE, 'r') as stream:
+                config = yaml.load(stream)
+        resultdir=config['RESULTDIR']
+        dstring  =config['DSTRING'] 
+        print("\n Scanning for %s in %s" %(dstring,resultdir))
+
+    except Exception:
+        print("".join(("\n Error in FullLoad : A file called local.yml should be present with RESULTDIR (repertory with model ouptuts) and DSTRING (eg. '1m' or '1d') values","'\n")))
+        
+    # Raise error if RESULTDIR or DSTRING is not present
+
+    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*.nc")]
+
+    mlist.sort()
+
+    mlist=[m.replace(resultdir,'') for m in mlist]
+# The following might be usefull if one want to predefine which files and which time indexes sould be considered, instead of processing and filtering afterwards
+#    for mm in mlist:
+#        Gl  = N3D_class.N3D(mm,'local_NEMO_OSR5c.yml', instancebat=False)
+#        if mm==mlist[0]:
+#            Ga=Gl
+#        else:
+#            Ga.dates = ma.append(Ga.dates,Gl.dates,0)
+
+    return(mlist)
+#    print(mlist)
+
+######################################################################
 
 class G3D(object): 
     '''This is a class for model outputs exploration. It is based on GHER3D model outputs, but child classes are available for other models.'''
@@ -21,20 +55,7 @@ class G3D(object):
 ######################################################################
 
     def __init__(self,infile, YAML_FILE = 'local.yml'):
-
-        self.infile=infile
-
-        #The diag filename can be used to store computed diagnostic
-        self.diagfile= self.infile[:-3]+".diag.nc"
-
         print(' *******  \n')
-        if os.path.isfile(self.infile):
-            print(self.infile + ' -> OK')
-            self.found=True
-        else:
-            print(self.infile + ' can not be found')
-            self.found=False
-            return
         try:
 #            YAML_FILE = 'local.yml'
             print("\nLaunching with YAML file: %s" % YAML_FILE)
@@ -67,6 +88,29 @@ class G3D(object):
         except :
             self.timevarname    = 'time'
 
+        if os.path.isfile(infile):
+            self.infile=infile
+            print(self.infile + ' -> OK')
+            self.found=True
+        elif os.path.isfile(config['RESULTDIR']+infile):
+            self.infile=config['RESULTDIR']+infile
+            print(self.infile + ' -> OK')
+            self.found=True
+        else:
+            print(infile+' can not be found in '+config['RESULTDIR'])
+            self.found=False
+            return
+
+        #The diag filename can be used to store computed diagnostic
+        try: 
+            self.diagdir    = config['DIAGDIR']
+            self.diagfile   = self.diagdir+infile[:-3]+".diag.nc"
+        except:
+            self.diagfile= self.infile[:-3]+".diag.nc"
+
+        if not os.path.isdir(self.figoutputdir):
+            os.mkdir(self.figoutputdir)
+
         self.instance_bat()
         self.testtime()
 
@@ -91,6 +135,21 @@ class G3D(object):
         self.londimname   = config['LONDIMNAME'] if ('LONDIMNAME' in config) else 'longitude'
 
 
+###################################################################### 
+# Ensure monotonic, non-redundant dates in self
+# All fields with valid time dimensions are reduced accordingly. 
+    def timeclean(self):
+        ld=list(self.dates)   
+        indx=[ld.index(i) for i in sorted(np.unique(self.dates))]
+        
+        otl = len(self.dates)
+        # list of array attributes of self  with valid time dimension 
+        bb  = [ a for a in self.__dict__  if isinstance(self.__getattribute__(a),np.ndarray) ]
+        bbb = [ b for b in bb if self.__getattribute__(b).shape[0]==otl]
+
+        for b in bbb:
+            print('Time-cleaning '+b)
+            self.__setattr__(b, self.__getattribute__(b)[indx])
 
 
 ######################################################################
@@ -1041,6 +1100,7 @@ class G3D(object):
 
         exec('loc=self.'+varname+'.copy()')
 
+        self.testz()
         loclon=self.lon
         loclat=self.lat
         locbat=self.bat[0,0]
