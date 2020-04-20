@@ -1224,7 +1224,7 @@ class G3D(object):
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formator)
         cs=plt.contourf(self.dates, z, loc.transpose(), np.linspace(Clim[0],Clim[1],20), extend="max", cmap=cmap )
-        cbar_ax = fig.add_axes([0.1, 0.04, 0.8, 0.03])
+        cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])
         cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal")
         cbar.set_label(varname)
 

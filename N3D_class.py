@@ -22,7 +22,7 @@ def FullLoad(YAML_FILE = 'local.yml', dstring='1d'):
         
     # Raise error if RESULTDIR or DSTRING is not present
 
-    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*ptrc_T*.nc")]
+    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*ptrc_T*.nc4")]
 
     mlist.sort()
 
