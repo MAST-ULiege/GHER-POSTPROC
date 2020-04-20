@@ -23,31 +23,37 @@ class G3Ddata(object):
 
     def __init__(self,infile, variable, mode='mat'):
 
-        self.infile= infile
-        self.mode  = mode
+        self.infile = infile
+        self.mode   = mode
 
-        print(' *** Loading Data ****  \n')
-        if os.path.isfile(self.infile):
-            print(self.infile + ' -> OK')
-            self.found=True
-        else:
-            print(self.infile + ' can not be found')
-            self.found=False
-            return
+        if self.mode =='mat':
+            print(' *** Loading Data ****  \n')
+            if os.path.isfile(self.infile):
+                print(self.infile + ' -> OK')
+                self.found=True
+            else:
+                print(self.infile + ' can not be found')
+                self.found=False
+                return
 
-        test = sio.loadmat(infile)
+            test = sio.loadmat(infile)
 
-    # this should be read somewhere
-        self.lon      = test['lon'].squeeze()
-        self.lat       = test['lat'].squeeze()
+            self.lon      = test['lon'].squeeze()
+            self.lat       = test['lat'].squeeze()
         # HERE FOR LATER : use dict for data and model variable. Save relavant value in the object using model variable (or equivalent to instance_...) 
-        self.obs      = test['oxy'].squeeze()
-        self.time     = test['time'].squeeze()
-        self.depth     = test['depth'].squeeze()
-        self.variable = variable
-        self.model    = np.empty_like(self.obs)
+            self.obs      = test['oxy'].squeeze()
+            self.time     = test['time'].squeeze()
+            self.depth     = test['depth'].squeeze()
+            self.variable = variable
+            self.model    = np.empty_like(self.obs)
 
-        self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
+            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
+
+        if self.mode =='nc':
+            with Dataset(infile,'r') as inf:
+                for name, variable in inf.variables.items():
+                    self.__setattr__(name,inf.variables[name][:]) 
+            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
 
     def subset(self, lons=None, lats=None, datess=None, depths=None):
         if lons is not None:  
@@ -118,6 +124,39 @@ class G3Ddata(object):
 
     def ncsave(self,fname):
         with Dataset(fname,'w') as outf:
+            # create record dimension, open
+            # All values of the good length using recod dimension .. 
+            # Deal with the rest later. 
+            outf.createDimension('record',None)
+            otl = len(self.dates)
+            bb  = [ a for a in self.__dict__  if isinstance(self.__getattribute__(a),np.ndarray) ]
+            bbb = [ b for b in bb if self.__getattribute__(b).shape[0]==otl]
+
+            for b in bbb:
+                print('Writing '+b)
+                outf.createVariable(b, np.float32, 'record')
+                outf.variables[b][:] = self.__getattribute__(b)
+
+
+    def ncload(self,fname):
+        with Dataset(fname,'r') as inf:
+            for name, dimension in inf.dimensions.items():
+                if self.verbose: print ('\n XXX '+name+'  '+str(dimension))
+                if ((ndim==2) and (name in [self.latdimname, self.londimname])):
+                    diagf.createDimension(name, 1)
+                else:
+                    diagf.createDimension(name, len(dimension) if not dimension.isunlimited() else None)
+
+            for name, variable in inf.variables.items():
+ 
+                if name  in [self.depthdimname, self.latdimname, self.londimname]: 
+                    if ((ndim==2) and (name in [self.latdimname, self.londimname])):
+                        x = diagf.createVariable(name, variable.datatype, variable.dimensions)
+                        exec('diagf.variables[name][:] = self.'+name)
+                    else:
+                        x = diagf.createVariable(name, variable.datatype, variable.dimensions)
+                        diagf.variables[name][:] = inf.variables[name][:]
+
             # create record dimension, open
             # All values of the good length using recod dimension .. 
             # Deal with the rest later. 
