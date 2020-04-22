@@ -94,6 +94,11 @@ class G3Ddata(object):
         points=[  [ self.dayfromO[i], self.depth[i], self.lat[i], self.lon[i]] for i in range(len(self.dates))]
 
         self.model = interpolator(points)
+
+        interpbat = RegularGridInterpolator((G.lat,G.lon), G.bat.squeeze(), bounds_error=False, fill_value=np.nan)
+        points = [  [ self.lat[i], self.lon[i]] for i in range(len(self.dates))]
+        
+        self.modelbat = interpbat(points) 
         
 
     def plot_time(self, binwidth='months', Clim=None, title=None, figout=None, figoutputdir='./'):

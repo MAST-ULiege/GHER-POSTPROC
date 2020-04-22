@@ -121,7 +121,7 @@ class G3D(object):
 #        try: 
         self.initparams(config['PARAMFILE'])
 	
-	self.verbose      = config['VERBOSE'] if ('VERBOSE' in config) else True
+        self.verbose = config['VERBOSE'] if ('VERBOSE' in config) else True
         self.sparemem     = config['SPAREMEM'] if ('SPAREMEM' in config) else False
 
 
@@ -418,7 +418,7 @@ class G3D(object):
             try:
                 nc.createDimension(self.timedimname, None)
                 tv=nc.createVariable(self.timevarname , np.float32, self.timedimname)
-                nc.variables[self.timevarname][:]= [(t-dt.datetime(1900,01,01,00,00,00)).total_seconds() for t in self.dates]        
+                nc.variables[self.timevarname][:]= [(t-dt.datetime(1900,1,1,0,0,0)).total_seconds() for t in self.dates]        
                 tv.units='seconds since 1900-01-01 00:00:00'
             except Exception as ee:
                 print('Error when attempting to create the time dimension %s in %s'%(self.timedimname,self.diagfile))
