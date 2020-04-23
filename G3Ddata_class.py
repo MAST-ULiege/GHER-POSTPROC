@@ -21,7 +21,7 @@ class G3Ddata(object):
     '''This is a class for model-data comparison.''' 
 ######################################################################
 
-    def __init__(self,infile, variable, mode='mat'):
+    def __init__(self,infile, variable, vardataname, mode='mat'):
 
         self.infile = infile
         self.mode   = mode
@@ -41,7 +41,7 @@ class G3Ddata(object):
             self.lon      = test['lon'].squeeze()
             self.lat       = test['lat'].squeeze()
         # HERE FOR LATER : use dict for data and model variable. Save relavant value in the object using model variable (or equivalent to instance_...) 
-            self.obs      = test['oxy'].squeeze()
+            self.obs      = test[vardataname].squeeze()
             self.time     = test['time'].squeeze()
             self.depth     = test['depth'].squeeze()
             self.variable = variable
@@ -81,25 +81,21 @@ class G3Ddata(object):
         self.dates = [ self.dates[i] for i,r in enumerate(idx) if r]
             
     def addmodel(self,G,vavar=None):
-
         if vavar is None:
             vavar=self.variable
         # G should be a model object of class G3D or N3D
-        # Add a model column to the data matrix                                                                                                                                                                             
-        # get date as a real.                                                                                                                                                                      
+        # Add a model column to the data matrix    
         dayfromO   = [ (d-G.dates[0]).days for d in G.dates]
         self.dayfromO = [ (d-G.dates[0]).days for d in self.dates]
-
         interpolator = RegularGridInterpolator((dayfromO, G.z[0,:,0,0], G.lat,G.lon), G.__getattribute__(vavar), bounds_error=False, fill_value=np.nan)
         points=[  [ self.dayfromO[i], self.depth[i], self.lat[i], self.lon[i]] for i in range(len(self.dates))]
+        self.model = interpolator(points)        
 
-        self.model = interpolator(points)
-
+    def addmodelbat(self,G):
         interpbat = RegularGridInterpolator((G.lat,G.lon), G.bat.squeeze(), bounds_error=False, fill_value=np.nan)
-        points = [  [ self.lat[i], self.lon[i]] for i in range(len(self.dates))]
-        
+        points = [ [self.lat[i], self.lon[i]] for i in range(len(self.dates))]
         self.modelbat = interpbat(points) 
-        
+
 
     def plot_time(self, binwidth='months', Clim=None, title=None, figout=None, figoutputdir='./'):
         locator = mdates.AutoDateLocator()
