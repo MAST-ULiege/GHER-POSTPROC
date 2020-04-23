@@ -96,7 +96,6 @@ class G3Ddata(object):
         points = [ [self.lat[i], self.lon[i]] for i in range(len(self.dates))]
         self.modelbat = interpbat(points) 
 
-
     def plot_time(self, binwidth='months', Clim=None, title=None, figout=None, figoutputdir='./'):
         locator = mdates.AutoDateLocator()
         formator = mdates.AutoDateFormatter(locator)

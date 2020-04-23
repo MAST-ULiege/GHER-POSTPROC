@@ -1,6 +1,5 @@
 import numpy as np
 
-
 import numpy.ma as ma
 from netCDF4 import Dataset
 import gsw
@@ -1958,3 +1957,20 @@ class G3D(object):
                         
             self.Z14_5=ma.masked_invalid(self.Z14_5)
 
+
+###############################################################################
+# Process
+# Filling value "below bat" in the 3D (4D) matrix, prior to interpolation
+
+    def fillbelowbat(self, vvar):
+        loc=self.__getattr__(vvar)
+        if (len(loc.squeeze().shape)<4):
+            print (' Only for 4d !! ' + str(loc.squeeze().shape))
+            return
+
+        for shift in range(loc.shape[1]):
+            loc_shifted=np.roll(loc,shift=shift,axis=1)
+            idx=~loc_shifted.mask * loc.mask
+            loc[idx]=loc_shifted[idx]
+
+        self.__setattr__(b,loc)
