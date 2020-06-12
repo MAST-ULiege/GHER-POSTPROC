@@ -242,7 +242,7 @@ class G3D(object):
 # TODO 
 
     def gload(self,varname,i=None,j=None, k=None):
-        if self.verbose: print( 'GLoading '+ (varname) + ' for i:'+str(i)+', j:'+str(j)+' ,k:'+str(k))
+        if self.verbose: print( 'GLoading '+ (varname) + ' for i:'+str(i)+', j:'+str(j)+' ,k:'+str(k)+', from' + self.infile)
         try:
             # looking for the variable in the original file
             with Dataset(self.infile,'r') as nc:
@@ -256,7 +256,7 @@ class G3D(object):
                     else:
                         if self.verbose: print(varname + ' is 3+1D')
                         exec('self.'+varname+ '= l')#nc.variables[varname][:]')
-                    print( 'Just loaded '+ (varname) + ' full')
+                    if self.verbose: print( 'Just loaded '+ (varname) + ' full')
                 elif (k is None) and (i is not None) and (j is not None):
                     if self.verbose: print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
 #                   This is probably costing a lot of ressources uselessly - AC Mar2020
@@ -269,7 +269,7 @@ class G3D(object):
                         exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= l[:,None,j,i]')#nc.variables[varname][:,:,j,i]')
                     else:
                         print('cannot understand diomension of %s'%varname)
-                    print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                    if self.verbose: print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                 elif (k is not None) and (i is None) and (j is None):
                     if (k=="surface"):
                         exec('self.'+varname+'ksurface= nc.variables[varname][:,self.ksurface]')
@@ -277,16 +277,14 @@ class G3D(object):
                     elif (k=='bottom'):
                         self.testvar(varname)
                         exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
-                        print('  SWEET  ')
                         for jj in range(self.bat.shape[2]):
                             for ii in range(self.bat.shape[3]):
                                 if (not ma.is_masked(self.kbottom[0,0,jj,ii])):
                                     exec('self.'+varname+'kbottom[:,0,jj,ii]= self.'+varname+'[:,self.kbottom[0,0,jj,ii],jj,ii]')
-                        print(' honey ') 
                     else:                        
                         exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
                         exec('self.'+varname+'k'+str(k)+'=self.'+varname+'k'+str(k)+'[:,None,:,:]')
-                    print( 'Just loaded '+ (varname) +' for k:'+str(k))
+                    if self.verbose: print( 'Just loaded '+ (varname) +' for k:'+str(k))
                 elif (k is not None) and (i is not None) and (j is not None):
 #                    l=nc.variables[varname][:]
 #                    if (len(l.shape)==3):
@@ -296,45 +294,37 @@ class G3D(object):
 #                    else:
 #                        if self.verbose: print(varname + ' is 3+1D')
                     exec('self.'+varname+'i'+str(i)+'j'+str(j)+'k'+str(k)+'=nc.variables[varname][:,k,j,i]')
-                    print( 'Just loaded '+ (varname) +' for i:'+str(i)+' and j:'+str(j)+' and k:'+str(k))
+                    if self.verbose: print( 'Just loaded '+ (varname) +' for i:'+str(i)+' and j:'+str(j)+' and k:'+str(k))
                 else:
                     print(' Strange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
                     
         except: 
-            print( '\n %s not found in %s'%(varname,self.infile))
+            if self.verbose: print( '\n %s not found in %s'%(varname,self.infile))
             try:
                 # looking for the variable in the diag file (created by function gstore)
                 with Dataset(self.diagfile,'r') as nc:
                     if (k is None) and (i is None) and (j is None):
                         exec('self.'+varname+ '= nc.variables[varname][:]')
-                        print( 'Just loaded '+ (varname) + ' for full')
+                        if self.verbose: print( 'Just loaded '+ (varname) + ' for full')
                     elif (k is None) and (i is not None) and (j is not None):
-                        print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                        if self.verbose: print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                         exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= nc.variables[varname][:,:,j,i]')
-                        print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
+                        if self.verbose: print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                     elif (k is not None) and (i is None) and (j is None):
                         exec('self.'+varname+'k'+str(k)+'= nc.variables[varname][:,k]')
-                        print( 'Just loaded '+ (varname) +' for ki:'+str(k))
+                        if self.verbose: print( 'Just loaded '+ (varname) +' for ki:'+str(k))
                     else:
                         print(' Stange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
 
 
             except Exception as e: 
-                print( '\n %s not found in %s'%(varname,self.diagfile))
                 # looking for an instance function allowing to define this variable
-                print(e)
-                
-                print( '-> Calling')
-                #try:
+                if self.verbose:
+                    print( '\n %s not found in %s'%(varname,self.diagfile))
+                    print(e)                
+                    print( '-> Calling')
                 print('     self.instance_'+varname+'(i='+str(i)+',j='+str(j)+',k='+str(k)+')')
                 exec('self.instance_'+varname+'(i=i,j=j,k=k)')
-
-#                exec('loc=self.+varname+')
-
-
-
-                #except:
-                #    print('self.instance_'+varname+' is not defined.')
                     
 ######################################################################
 # UTILITY : Save a map of regions (as integers)
@@ -414,6 +404,7 @@ class G3D(object):
         exec('print(self.'+varname+'.shape)')
 
         with Dataset(self.diagfile,'a') as nc:
+            # TODO replace this with a test
             try:
                 nc.createDimension(self.timedimname, None)
                 tv=nc.createVariable(self.timevarname , np.float32, self.timedimname)
@@ -438,12 +429,12 @@ class G3D(object):
                 elif ((ndim == 2) and (depth is not None)) :  # assuming here : time, depth
                     if self.verbose: print('I''m in Depth option for gstore 2D')
                     try:
-                        nc.variables['depth'][:]
+                        nc.variables[self.depthvarname][:]
                     except:
 #                        nc.createDimension('depth', len(ztab))
-                        nc.createVariable('depth', np.float32, 'level')
-                        nc.variables['depth'][:] = depth
-                    nc.createVariable(varname, np.float32, (self.timevarname,'level'), zlib=True)
+                        nc.createVariable(self.depthvarname, np.float32, self.depthdimname)
+                        nc.variables[self.depthvarname][:] = depth
+                    nc.createVariable(varname, np.float32, (self.timedimname,self.depthdimname), zlib=True)
                 elif ((ndim == 2) and (dtab is not None)) :  # assuming here : time, dtab
                     print('I''m IN DTAB')
                     try:
@@ -567,7 +558,7 @@ class G3D(object):
         try:
             self.dz
         except :
-            print('dz not found -> loading')
+            if self.verbose: print('dz not found -> loading')
             self.instance_z()
             self.instance_zi()
             self.instance_dz()
@@ -603,7 +594,7 @@ class G3D(object):
         try:
             self.time
         except:
-            print('%s not found -> loading'%(self.timevarname))
+            if self.verbose: print('%s not found -> loading'%(self.timevarname))
             self.gload(self.timevarname)
             exec('self.time=self.'+self.timevarname)
 #            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in self.time]
@@ -745,6 +736,7 @@ class G3D(object):
 # UTILITY : test spatial coordinates
 
     def test_coord(self,c1,c2):
+        self.testz()
         if (type(c1) is int) & (type(c2) is int):
            #considered as indexes                                                                                                                                   
             i=c1
@@ -979,14 +971,17 @@ class G3D(object):
                 cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend=extend)
                 if batlines: 
                     m.contour(xx,yy,G.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
+                m.text(31.0,41.5,set_title(calendar.month_name[monthi]))
+
             except:
                 cs = aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
                                                                                   levels= np.linspace(Clim[0],Clim[1],20),\
                                                                                   cmap=cmap, extend=extend)
                 if batlines:
                     aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contour(loclon, loclat,locbat,levels=[40,80,120], colors='k',linestyles='dashed')
-
-            aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].set_title(calendar.month_name[monthi])
+                    
+                aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].text(31.0,43.5,calendar.month_name[monthi])
+            #aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].set_title(calendar.month_name[monthi])
 
         fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.2, right=0.95, left=0.05, top=0.95)
         cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])
@@ -1283,8 +1278,8 @@ class G3D(object):
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formator)
         cs=plt.contourf(self.dates, z, loc.transpose(), np.linspace(Clim[0],Clim[1],20), extend="max", cmap=cmap )
-        cbar_ax = fig.add_axes([0.1, 0.1, 0.8, 0.03])
-        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="horizontal")
+        cbar_ax = fig.add_axes([0.9, 0.1, 0.03, 0.8])
+        cbar    = fig.colorbar(cs,ticks=np.linspace(Clim[0],Clim[1],11),cax=cbar_ax, orientation="vertical")
         cbar.set_label(varname)
 
         fig.savefig(self.figoutputdir+figout+'.png')
@@ -1963,7 +1958,7 @@ class G3D(object):
 # Filling value "below bat" in the 3D (4D) matrix, prior to interpolation
 
     def fillbelowbat(self, vvar):
-        loc=self.__getattr__(vvar)
+        loc=self.__getattribute__(vvar)
         if (len(loc.squeeze().shape)<4):
             print (' Only for 4d !! ' + str(loc.squeeze().shape))
             return
@@ -1973,4 +1968,4 @@ class G3D(object):
             idx=~loc_shifted.mask * loc.mask
             loc[idx]=loc_shifted[idx]
 
-        self.__setattr__(b,loc)
+        self.__setattr__(vvar,loc)

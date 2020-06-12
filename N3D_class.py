@@ -9,8 +9,12 @@ import G3D_class
 import glob
 
 ######################################################################
+def FullLoad(YAML_FILE = 'local.yml', dstring='1d', begdate=None, enddate=None):
+    '''
+    Used to prepare and manipulate filelist BEFORE instantiation of the class. 
+    '''
+    import N3D_class
 
-def FullLoad(YAML_FILE = 'local.yml', dstring='1d'):
     try:
         print("\n Full Load from YAML file: %s" % YAML_FILE)
         with open(YAML_FILE, 'r') as stream:
@@ -19,34 +23,36 @@ def FullLoad(YAML_FILE = 'local.yml', dstring='1d'):
         dstring  =config['DSTRING'] 
     except Exception:
         print("".join(("\n Error in FullLoad : A file called local.yml should be present with RESULTDIR (repertory with model ouptuts) and DSTRING (eg. '1m' or '1d') values","'\n")))
-        
-    # Raise error if RESULTDIR or DSTRING is not present
 
-    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*ptrc_T*.nc4")]
-
+    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*ptrc_T*.nc*")]
     mlist.sort()
-
     mlist=[m.replace(resultdir,'') for m in mlist]
-# The following might be usefull if one want to predefine which files and which time indexes sould be considered, instead of processing and filtering afterwards
-#    for mm in mlist:
-#        Gl  = N3D_class.N3D(mm,'local_NEMO_OSR5c.yml', instancebat=False)
-#        if mm==mlist[0]:
-#            Ga=Gl
+
+    if ((begdate is not None) and (enddate is not None)) :
+#        try : 
+#        for mi,mm in enumerate(mlist):
+#            Gl  = N3D_class.N3D(mm,YAML_FILE, instancebat=False)
+#            if all(Gl.dates<begdate) or all(Gl.dates>enddate):
+#                mlist.drop(mi)
+#            if mm==mlist[0]:
+#                Ga=Gl
 #        else:
 #            Ga.dates = ma.append(Ga.dates,Gl.dates,0)
 
+            # Assuming NEMO file conventions
+        mlist = [ m for m in mlist if not ((N3D_class.N3D(m,YAML_FILE, instancebat=False).dates[-1]<begdate) or (N3D_class.N3D(m,YAML_FILE, instancebat=False).dates[0]>enddate))]
+
     return(mlist)
-#    print(mlist)
 
 ######################################################################
 
 class N3D(G3D_class.G3D): 
-    '''This is a class for NEMO model outputs exploration. It is based on G3D class but overides specific methods (for z, lon, lat definitions)'''
+    '''
+    This is a class for NEMO model outputs exploration. It is based on G3D class but overides specific methods (for z, lon, lat definitions)
+    '''
     def __init__(self,infile,YAML_FILE='local.yml', instancebat=True):
-        print(' *******  \n')
+        #print(' *******  \n')
         try:
-#            YAML_FILE = 'local.yml'
-            print("\nLaunching with YAML file: %s" % YAML_FILE)
             # Read yaml configuration file
             with open(YAML_FILE, 'r') as stream:
                 config = yaml.load(stream)
@@ -56,18 +62,18 @@ class N3D(G3D_class.G3D):
         try:
             self.model    = config['MODEL'] 
         except :
-            self.model    = 'GHER'
+            self.model    = 'NEMO'
         self.batfile      = config['BATFILE']
         self.figoutputdir = config['PLOTDIR']
         self.resultdir    = config['RESULTDIR']
 
         if os.path.isfile(infile):
             self.infile=infile
-            print(self.infile + ' -> OK')
+#            print(self.infile + ' -> OK')
             self.found=True
         elif os.path.isfile(config['RESULTDIR']+infile):
             self.infile=config['RESULTDIR']+infile
-            print(self.infile + ' -> OK')
+#            print(self.infile + ' -> OK')
             self.found=True
         else:
             print(infile+' can not be found in '+config['RESULTDIR'])
@@ -85,6 +91,7 @@ class N3D(G3D_class.G3D):
             self.diagfile= self.infile[:-3]+".diag.nc"
 
         try:
+            self.verbose      = True
             self.verbose      = config['VERBOSE']
             self.sparemem     = config['SPAREMEM']
     # instantiate the dictionnary with model parameters
@@ -92,7 +99,7 @@ class N3D(G3D_class.G3D):
     # needs an update based on namelist (model specific)
             self.updateparams(config['CONFIGFILE'])
         except: 
-            print('some available setup info not found in the yaml file, check N3D_class.py: _init_, if needed')
+            if self.verbose: print('some available setup info not found in the yaml file, check N3D_class.py: _init_, if needed')
 
         if instancebat:
             self.instance_bat()
@@ -108,9 +115,13 @@ class N3D(G3D_class.G3D):
         self.londimname   = config['LONDIMNAME'] if ('LONDIMNAME' in config) else 'x'
 
 ###################################################################### 
-# Ensure monotonic, non-redundant dates in self
-# All fields with valid time dimensions are reduced accordingly. 
     def timeclean(self):
+        '''
+        UTILITY : Ensure monotonic, non-redundant dates in an instance of the class, 
+        as could result from gathering files with redundant times entries (eg. from model run interruption).
+
+        All fields with valid time dimensions are reduced accordingly. 
+        '''
         ld=list(self.dates)   
         indx=[ld.index(i) for i in sorted(np.unique(self.dates))]
         
@@ -124,8 +135,10 @@ class N3D(G3D_class.G3D):
             self.__setattr__(b, self.__getattribute__(b)[indx])
 
 ######################################################################                                                                                                                                             
-# UTILITY : update param dictionnary with run-specific values                                                                                                                                                  
     def updateparams(self,f):
+        '''
+        UTILITY : update model parameters dictionnary with run-specific values         
+        '''
         fp = open(f, 'r')
         line='a'
         while 'namtrc_bamhbi' not in line: # skip all lines before relevant ones
@@ -141,14 +154,17 @@ class N3D(G3D_class.G3D):
 
 
 ######################################################################
-# VARIABLE : BAT
     def instance_bat(self):
+        '''
+        VARIABLE : Bathymetry
+        '''
         if os.path.isfile(self.batfile):
             print(self.batfile + ' -> OK')
         else:
             print(self.batfile + ' can not be found') 
 
         self.ksurface=0
+
 
 
         with Dataset(self.batfile,'r') as nc:
@@ -172,48 +188,55 @@ class N3D(G3D_class.G3D):
 
         self.kbottom = ma.where(self.kbottom!=0, self.kbottom-1,self.kbottom)
 ######################################################################
-# VARIABLE : Z
     def instance_z(self):
-        # Dynamic z considering ETA
-
+        '''
+        VARIABLE : Depth
+        Dynamic z considering ETA.
+        !! Does not currently consider Free Surface !! 
+        '''
         with Dataset(self.batfile,'r') as nc:
             self.z   = nc.variables['gdept_0'][:]     # 3D # Wrong for now, we don't consider free surface !!           
             self.lon = nc.variables['glamt'][:][0,0,:]
             self.lat = nc.variables['gphit'][:][0,:,0]
             self.dz  = nc.variables['e3t_0'][:]
 ######################################################################
-# VARIABLE : ZI
     def instance_zi(self):
-        # For now let's build a constant dz,
+        '''                                                                                                                                                                                                                VARIABLE : Depth at interfaces                                                                                                                                            
+        Dynamic z considering ETA.
+        !! Does not currently consider Free Surface !!
+        '''
         with Dataset(self.batfile,'r') as nc:
             self.zi  = nc.variables['gdepw'][:]
 ######################################################################
-# UTILITY : test z        
     def testz(self):
+        '''
+        UTILITY : test if depth is defined, load it if not.
+        '''
         try:
             self.dz
         except :
-            print('dz not found -> loading')
+            if self.verbose: print('dz not found -> loading')
             self.instance_z()
 #####################################################################
-# UTILITY : test variable
-    def testvar(self,varname,doload=True,i=None,j=None, k=None, verbose=True):
+    def testvar(self,varname,doload=True,i=None,j=None, k=None):
+        '''
+        UTILITY : test presence of a given variable, load it if needed. 
+        '''
         try:
-            print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
+            if self.verbose: print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             if (i is None) and (j is None) and (k is None):
                 exec('self.'+varname)
             elif (k is not None):
                 exec('self.'+varname+'k'+str(k))
             elif (i is not None) and (j is not None):
-                print('self.'+varname+'i'+str(i)+'j'+str(j))
                 exec('self.'+varname+'i'+str(i)+'j'+str(j))
             isthere=True
         except:
             print('Not Loaded: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
             isthere=False
             if doload:
-                if (any([x is not None for x in [i,j,k]])) and self.testvar(varname, doload=False, verbose=False):
-                    print ('Getting v=%s for i :%s, j:%s, k:%s from the complete loaded %s'%(varname, i,j,k,varname) )
+                if (any([x is not None for x in [i,j,k]])) and self.testvar(varname, doload=False):
+                    if self.verbose: print ('Getting v=%s for i :%s, j:%s, k:%s from the complete loaded %s'%(varname, i,j,k,varname) )
                     if (k is not None) and (i is None) and (j is None):
                         if (k=='bottom'):
                             exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
@@ -235,7 +258,7 @@ class N3D(G3D_class.G3D):
                 # NEMO NEEDS EXTRA MASKING
                 if (i is None) and (j is None):
                     self.testz()
-                    print('remasking ' +varname)
+                    if self.verbose: print('remasking ' +varname)
                     if (k is not None):
                         varname=varname+'k'+k
                     exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
@@ -264,13 +287,13 @@ class N3D(G3D_class.G3D):
         try:
             self.time
         except:
-            print('%s not found -> loading'%('time'))
+            if self.verbose: print('%s not found -> loading'%('time'))
             self.gload('time_counter') # In NEMO time_counter is the number of seconds since referene time 
             self.time=self.time_counter
             del self.time_counter
             with Dataset(self.infile,'r') as nc:
                 t0 = nc.variables['time_counter'].time_origin 
-            print('Time Origin : %s'%(t0))    
+            if self.verbose: print('Time Origin : %s'%(t0))    
             self.dates = [dt.datetime.strptime(t0,'%Y-%m-%d %H:%M:%S')+dt.timedelta(seconds=int(t)) for t in self.time]
             self.timevarname='time_counter'
 
@@ -299,3 +322,62 @@ class N3D(G3D_class.G3D):
         else:
             self.TEM=self.votemper
             del self.votemper
+
+    def instance_U(self,i=None,j=None,k=None):
+        ''' VARIABLE : Centered U-velocity - [m/s]
+        '''
+        # Challenge here is to recompute centered velocity, while it's initially defined for another grid, stored in another file. 
+        # First attempt would be to temporarilly change "infile" (and other) properties of the instance to access the other file. 
+        print(self.infile)
+        self.infile=self.infile.replace('grid_T','grid_U')
+        print(self.infile)
+        self.testvar('vozocrtx', i=i,j=j, k=k)
+        if all ([x is None for x in [i,j,k]]):
+            U1=self.vozocrtx#[:,:,:,:-1]
+            U2=np.concatenate((U1[:,:,:,1:],U1[:,:,:,[-1]]), axis=3)
+            self.U=(U1+U2)/2
+            del self.vozocrtx
+        elif k is not None:
+            exec('U1=self.vozocrtxk'+str(k))
+            U2=np.concatenate((U1[:,:,:,1:],U1[:,:,:,[-1]]), axis=3)
+            exec('self.Uk'+k+'=(U1+U2)/2')
+            exec('del self.vozocrtxk'+k)
+        elif (i is not None) and (j is not None):
+            print('**1**')
+            print(i)
+            exec('U1=self.vozocrtxi'+str(i)+'j'+str(j))
+            print('**2**')
+            self.testvar('vozocrtx', i=i+1,j=j, k=k)
+            print('**3**')
+            exec('U2=self.vozocrtxi'+str(i+1)+'j'+str(j))
+            print('**4**')
+            exec('self.Ui'+str(i)+'j'+str(j)+'=(U1+U2)/2')
+
+        self.infile=self.infile.replace('grid_U','grid_T')
+
+    def instance_V(self,i=None,j=None,k=None):
+        ''' VARIABLE : Centered V-velocity - [m/s]
+        '''
+        # Challenge here is to recompute centered velocity, while it's initially defined for another grid, stored in another file. 
+        # First attempt would be to temporarilly change "infile" (and other) properties of the instance to access the other file. 
+        print(self.infile)
+        self.infile=self.infile.replace('grid_T','grid_V')
+        print(self.infile)
+        self.testvar('vomecrty', i=i,j=j, k=k)
+        if all ([x is None for x in [i,j,k]]):
+            V1=self.vomecrty
+            V2=np.concatenate((V1[:,:,:,1:],V1[:,:,:,[-1]]), axis=2)
+            self.V=(V1+V2)/2
+            del self.vomecrty
+        elif k is not None:
+            exec('V1=self.vomecrtyk'+str(k))
+            V2=np.concatenate((V1[:,:,1:,:],V1[:,:,[-1],:]), axis=2)
+            exec('self.Vk'+k+'=(V1+V2)/2')
+            exec('del self.vomecrtyk'+k)
+        elif (i is not None) and (j is not None):
+            exec('V1=self.vomecrtyi'+str(i)+'j'+str(j))
+            self.testvar('vomecrty', i=i,j=j+1, k=k)
+            exec('V2=self.vomecrtyi'+str(i)+'j'+str(j+1))
+            exec('self.Vi'+str(i)+'j'+str(j)+'=(V1+V2)/2')
+
+        self.infile=self.infile.replace('grid_V','grid_T')
