@@ -371,7 +371,7 @@ class G3D(object):
         if os.path.isfile(self.diagfile):
             # with Dataset(self.diagfile,'r') as nc:
             # lon= nc.variables[self.timevarname][:]
-            print('Found existing diagfile: %s'%(self.diagfile))
+            if self.verbose: print('Found existing diagfile: %s'%(self.diagfile))
         else: #except:
             # -> the diag file does not exist.
             # We should create one with same dimension and attributes
@@ -447,6 +447,8 @@ class G3D(object):
                     
                 elif ndim == 1:
                     nc.createVariable(varname, np.float32, (self.timevarname),zlib=True)
+                elif ndim == 0:
+                    nc.createVariable(varname, np.float32, ('singleton'),zlib=True)
             except  Exception as e :
                 print ('Error in gstore : ')
                 print(e)
@@ -459,7 +461,6 @@ class G3D(object):
 #                    print('Using 
                 print ('Maybe '+varname+' already exists on '+self.diagfile+' ? \n I attempt to overwrite')
                 
-
             exec('nc.variables[varname][:]=self.'+varname)
                 
 ######################################################################

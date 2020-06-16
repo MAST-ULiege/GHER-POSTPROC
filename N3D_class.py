@@ -343,14 +343,9 @@ class N3D(G3D_class.G3D):
             exec('self.Uk'+k+'=(U1+U2)/2')
             exec('del self.vozocrtxk'+k)
         elif (i is not None) and (j is not None):
-            print('**1**')
-            print(i)
             exec('U1=self.vozocrtxi'+str(i)+'j'+str(j))
-            print('**2**')
             self.testvar('vozocrtx', i=i+1,j=j, k=k)
-            print('**3**')
             exec('U2=self.vozocrtxi'+str(i+1)+'j'+str(j))
-            print('**4**')
             exec('self.Ui'+str(i)+'j'+str(j)+'=(U1+U2)/2')
 
         self.infile=self.infile.replace('grid_U','grid_T')
