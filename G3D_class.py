@@ -1,3 +1,4 @@
+
 import numpy as np
 
 import numpy.ma as ma
@@ -167,7 +168,7 @@ class G3D(object):
                 p,v=paramline.split('=')
                 try: # deals with all numeric values
                     daytosecond=86400.0
-                    exec('v='+v)
+                    #exec('v='+v)
                     d[p.strip()]=float(v)
                 except: # probably a useless boolean or string, so I don't go further at the moment
                     p,v=paramline.split('=')
@@ -252,7 +253,8 @@ class G3D(object):
                     if (len(l.shape)==3):
                         if self.verbose: print(varname + ' is 2+1D')
 #                        loc=nc.variables[varname][:]
-                        exec('self.'+varname+ '= l[:,None,:,:]')
+                        setattr(self,varname,l[:,None,:,:])
+#                        exec('self.'+varname+ '= l[:,None,:,:]')
                     else:
                         if self.verbose: print(varname + ' is 3+1D')
                         exec('self.'+varname+ '= l')#nc.variables[varname][:]')
@@ -1550,22 +1552,22 @@ class G3D(object):
 #
     def instance_MLD(self, i=None,j=None,k=None):
          #  Might probably be ipmroved a lot.                                                                                                                                                                  #            #  Currently, there are two 1D interpolation by i,j
+        deltasig=0.125
         self.testvar('DEN',i=i,j=j)
         self.testvar('DENat3',i=i,j=j)
 
-        self.MLD = ma.ones(self.DEN[:,self.ksurface])[:,None,:,:]*3
+#        self.MLD = ma.ones(self.DEN[:,self.ksurface].shape)[:,None,:,:]*3.0
+        self.MLD = self.DEN[:,self.ksurface].copy()[:,None,:,:]
+#        self.MLD = self.MLD/self.MLD*3.0
 
         for t in range(len(self.dates)):        
-            for i in xrange(Dloc.shape[1]):
-                for j in xrange(Dloc.shape[2]):
-                    if ma.is_masked(MLDloc[i,j]):
+            for i in xrange(self.MLD.shape[2]):
+                for j in xrange(self.MLD.shape[3]):
+                    if ma.is_masked(self.MLD[t,0,i,j]):
                         continue
-                    f = interp1d(zloc[:,i,j], Dloc[:,i,j])
-                    d3=f(-3)
-                    f = interp1d(Dloc[:,i,j], zloc[:,i,j])
+                    self.MLD[t,0,i,j]=np.interp(self.DENat3[t,:,i,j]+deltasig,self.DEN[t,:,i,j],self.z[0,:,i,j])
 
-        MLDloc[i,j]=f(d3+deltasig)
-        return MLDloc
+        return self.MLD
 
 ############################################################################                                                                                                             
 # VARIABLE : Z20, cf Capet et al. 2016, Biogeosciences
@@ -1582,12 +1584,13 @@ class G3D(object):
                     for j in xrange(self.Z20.shape[3]):
                         if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
                             continue
-                        f = np.interp(20, self.DOX[t,::-1,i,j],self.z[0,::-1,i,j],left=np.nan, right=np.nan )
+                        f = np.interp(20, self.DOX[t,::-1,i,j],self.z[0,::-1,i,j])
                         self.Z20[t,0,i,j]=f
 
         else:
             self.testvar('DOX',i=i,j=j)
-            exec('ldox=self.DOXi'+i+'j'+j+'.squeeze()')
+            ldox=getattr(self,'DOXi'+i+'j'+j).squeeze() 
+            #exec('ldox=self.DOXi'+i+'j'+j+'.squeeze()')
             loc = ma.empty_like(ldox)
 
             for t in range(len(self.dates)):
@@ -1809,7 +1812,7 @@ class G3D(object):
         out=ma.zeros(self.time.shape+self.z.shape[1:])
         for vvar, factor in sumdic.items():
             self.testvar(vvar)
-            exec('out = ma.add(out, self.'+vvar+'*factor)')
+            out = ma.add(out, getattr(self,vvar)*factor)
             if self.sparemem: exec('del self.'+vvar)
         return(out)
 
