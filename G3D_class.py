@@ -168,7 +168,6 @@ class G3D(object):
                 p,v=paramline.split('=')
                 try: # deals with all numeric values
                     daytosecond=86400.0
-                    #exec('v='+v)
                     d[p.strip()]=float(v)
                 except: # probably a useless boolean or string, so I don't go further at the moment
                     p,v=paramline.split('=')
@@ -252,25 +251,24 @@ class G3D(object):
                     l=nc.variables[varname][:]
                     if (len(l.shape)==3):
                         if self.verbose: print(varname + ' is 2+1D')
-#                        loc=nc.variables[varname][:]
                         setattr(self,varname,l[:,None,:,:])
-#                        exec('self.'+varname+ '= l[:,None,:,:]')
                     else:
                         if self.verbose: print(varname + ' is 3+1D')
-                        exec('self.'+varname+ '= l')#nc.variables[varname][:]')
+                        exec('self.'+varname+ '= l')
                     if self.verbose: print( 'Just loaded '+ (varname) + ' full')
                 elif (k is None) and (i is not None) and (j is not None):
                     if self.verbose: print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
 #                   This is probably costing a lot of ressources uselessly - AC Mar2020
-                    l=nc.variables[varname][:]
+                    l=nc.variables[varname]#[:]
                     if (len(l.shape)==4):
-                        print(varname + 'varname is 3+1D') 
-                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= l[:,:,j,i]')#nc.variables[varname][:,:,j,i]')
+                        print(varname + ' is 3+1D') 
+                        setattr(self,varname+'i'+str(i)+'j'+str(j),l[:,:,j,i])
+                        print(hasattr(self, varname+'i'+str(i)+'j'+str(j)))
                     elif (len(l.shape)==3):
                         print(varname + ' is 2+1D')
                         exec('self.'+varname+'i'+str(i)+'j'+str(j)+'= l[:,None,j,i]')#nc.variables[varname][:,:,j,i]')
                     else:
-                        print('cannot understand diomension of %s'%varname)
+                        print('cannot understand dimension of %s'%varname)
                     if self.verbose: print( 'Just loaded '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
                 elif (k is not None) and (i is None) and (j is None):
                     if (k=="surface"):
@@ -368,7 +366,7 @@ class G3D(object):
 # create a copy of the file "in.nc" as "in.diag.nc" copy dimension and attributes and add the requested value
          
     def gstore(self,varname, depth=None, dtab=None):
-        exec('ndim=len(self.'+varname+'.squeeze().shape)')
+        ndim=len(getattr(self,varname).squeeze().shape)
 
         if os.path.isfile(self.diagfile):
             # with Dataset(self.diagfile,'r') as nc:
@@ -777,6 +775,7 @@ class G3D(object):
         i,j=self.test_coord(c1,c2)
 
         zforplot=self.z[0,:,j,i]
+        print('%s : %s'%(varname, isvar))
         if isvar:
             # for some reason the 4d variable is already loaded in memory
             exec('loc=self.'+varname)
@@ -784,7 +783,10 @@ class G3D(object):
         else:
             # It's not loaded, but we'll load only what we need
             self.gload(varname,i=i,j=j)
-            exec('lloc=self.'+varname+'i'+str(i)+'j'+str(j))
+#            print(' existing test for %s : %s'%('self.'+varname+'i'+str(i)+'j'+str(j), 'self.'+varname+'i'+str(i)+'j'+str(j) in locals()))
+            lloc = getattr(self, varname+'i'+str(i)+'j'+str(j))
+            #exec('lloc=self.'+varname+'i'+str(i)+'j'+str(j))
+            #lloc=lloc
 
         return lloc,zforplot
         
