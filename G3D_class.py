@@ -199,9 +199,9 @@ class G3D(object):
             except:
                 # Only for old 15km case .. no time to do this better now - May 2019
                 self.zi=ma.zeros(np.array([1,32,47,115]))
-                for k in xrange(0,12):
+                for k in range(0,12):
                     self.zi[0,k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
-                for k in xrange(12,self.zi.shape[0]):
+                for k in range(12,self.zi.shape[0]):
                     self.zi[0,k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
                 self.z = self.zi[0,0:31]-self.zi[0,1:32]
                 self.z = self.z[None,:]
@@ -222,9 +222,9 @@ class G3D(object):
         # For now let's build a constant dz,
         # dynamic dz considering ETA can be done later
         self.zi=ma.zeros(self.z.shape+np.array([0,1,0,0]))
-        for k in xrange(0,12):
+        for k in range(0,12):
             self.zi[0,k]= - ma.masked_where( self.bat<=self.hlim,  (( self.bat - self.hlim ) * (1-self.sigII[k]) ) + self.hlim )
-        for k in xrange(12,self.zi.shape[1]):
+        for k in range(12,self.zi.shape[1]):
             self.zi[0,k]= - np.minimum(self.bat,self.hlim) * (1-self.sigI[k-12+1])
             
 ######################################################################
@@ -254,7 +254,7 @@ class G3D(object):
                         setattr(self,varname,l[:,None,:,:])
                     else:
                         if self.verbose: print(varname + ' is 3+1D')
-                        exec('self.'+varname+ '= l')
+                        setattr(self,varname,l)
                     if self.verbose: print( 'Just loaded '+ (varname) + ' full')
                 elif (k is None) and (i is not None) and (j is not None):
                     if self.verbose: print( 'Loading '+ (varname) + ' for i:'+str(i)+' and j:'+str(j))
@@ -293,7 +293,7 @@ class G3D(object):
 #                        exec('self.'+varname+ '= l[:,None,j,i]')
 #                    else:
 #                        if self.verbose: print(varname + ' is 3+1D')
-                    exec('self.'+varname+'i'+str(i)+'j'+str(j)+'k'+str(k)+'=nc.variables[varname][:,k,j,i]')
+                    setattr(self,varname+'i'+str(i)+'j'+str(j)+'k'+str(k),nc.variables[varname][:,k,j,i])
                     if self.verbose: print( 'Just loaded '+ (varname) +' for i:'+str(i)+' and j:'+str(j)+' and k:'+str(k))
                 else:
                     print(' Strange case encountered in  G3D_class.py : def gload (i:%,j:%;k:%)'%(i,j,k))
@@ -399,9 +399,8 @@ class G3D(object):
                             x = diagf.createVariable(name, variable.datatype, variable.dimensions)
                             diagf.variables[name][:] = inf.variables[name][:]
 
-        exec('ndim=len(self.'+varname+'.squeeze().shape)')
         print('\n Storing now '+varname+' ('+ str(ndim)+' dimensions) on '+self.diagfile)
-        exec('print(self.'+varname+'.shape)')
+        print(getattr(self,varname).shape)
 
         with Dataset(self.diagfile,'a') as nc:
             # TODO replace this with a test
@@ -461,7 +460,7 @@ class G3D(object):
 #                    print('Using 
                 print ('Maybe '+varname+' already exists on '+self.diagfile+' ? \n I attempt to overwrite')
                 
-            exec('nc.variables[varname][:]=self.'+varname)
+            nc.variables[varname][:]=getattr(self,varname)
                 
 ######################################################################
 # PROCESS : FULL INTEGRATION
@@ -479,16 +478,16 @@ class G3D(object):
         self.testtime()
 
         integrated=ma.empty(len(self.dates))
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
         if (len(self.dz.shape)>=3)and(loc.shape[1]>1):
             print("4D")
-            for t in xrange(len(self.dates)):
+            for t in range(len(self.dates)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
         elif (len(self.dz.shape)>=3)and(loc.shape[1]==1):
             print("2D")
-            for t in xrange(len(self.dates)):
+            for t in range(len(self.dates)):
                 bi=loc[t]*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
         # return should be 1D (time)    
@@ -510,7 +509,7 @@ class G3D(object):
         self.testvar(varname)        
                         
         avg=ma.empty(len(self.dates))
-        exec('loc=self.'+varname+'.copy()')
+        loc=getattr(self,varname).copy()
         print('In avgptial \n dz: %s  \n Field: %s'%( len(self.dz.shape),len(loc.shape)))
 
         # DIMENSIONAL CASE 
@@ -523,17 +522,17 @@ class G3D(object):
                 print('Found Mask with ' + str(maskin.sum()) + ' masked points.')
                 if len(maskin.squeeze().shape)==2:
                     print('static 2D mask .. OK')
-                    for t in xrange(len(self.time)):
+                    for t in range(len(self.time)):
                         loc[t]=ma.masked_where(maskin.squeeze()[None,:,:],loc[t])
                 elif ((len(maskin.squeeze().shape)==3) and (maskin.shape[0]==self.time.shape)):
                     print('dynamic 2D mask .. OK')
-                    for t in xrange(len(self.time)):
+                    for t in range(len(self.time)):
                         loc[t]=ma.masked_where(maskin.squeeze()[t],loc[t])
                 else:
                     print('Mask dimension not understood: %s'%(maskin.shape) )
 
             # AVERAGING
-            for t in xrange(len(self.time)):
+            for t in range(len(self.time)):
                 bi=loc[t]*self.dy*self.dx
                 vol=ma.masked_where(bi.mask,self.dy*self.dx*np.ones(bi.shape))
                 avg[t] = ma.sum(bi)/ma.sum(vol)
@@ -543,7 +542,7 @@ class G3D(object):
             if (maskin is not None):
                 print('Masking of 3D vars not implemented yet .. Complete G3D_class.py') 
             print("3D variable")
-            for t in xrange(len(self.time)):
+            for t in range(len(self.time)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 vol=ma.masked_where(bi.mask,self.dz*self.dy*self.dx)
                 avg[t] = ma.sum(bi)/ma.sum(vol)
@@ -568,22 +567,17 @@ class G3D(object):
 # UTILITY : test variable
             
     def testvar(self,varname,doload=True,i=None,j=None, k=None):
-        try:
-            print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
-            if (i is None) and (j is None) and (k is None):
-                exec('self.'+varname)
-            elif (k is not None):
-                exec('self.'+varname+'k'+str(k))
-            elif (i is not None) and (j is not None):
-                exec('self.'+varname+'i'+str(i)+'j'+str(j))
+        if self.verbose: print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
+        if (i is None) and (j is None) and (k is None):
+            isthere=hasattr(self,varname)
+        elif (k is not None):
+            isthere=hasattr(self,varname+'k'+str(k))
+        elif (i is not None) and (j is not None):
+            isthere=hasattr(self,varname+'i'+str(i)+'j'+str(j))
+        if doload and not isthere :
+            print ('Loading v=%s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
+            self.gload(varname,i=i,j=j,k=k)
             isthere=True
-        except:
-            print('Not Loaded: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
-            isthere=False
-            if doload:
-                print ('Loading v=%s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
-                self.gload(varname,i=i,j=j,k=k)
-                isthere=True
 
         return(isthere)
                 
@@ -597,7 +591,7 @@ class G3D(object):
         except:
             if self.verbose: print('%s not found -> loading'%(self.timevarname))
             self.gload(self.timevarname)
-            exec('self.time=self.'+self.timevarname)
+            self.time=getattr(self,timevarname)
 #            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(days=int(t)) for t in self.time]
             # Replaced the above (May 2019) 
             self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
@@ -609,8 +603,8 @@ class G3D(object):
     
         if (len(loc.shape)==4) and (len(maskin.squeeze().shape)==2):
             print('Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
-            for t in xrange(loc.shape[0]):
-                for k in  xrange(loc.shape[1]):
+            for t in range(loc.shape[0]):
+                for k in  range(loc.shape[1]):
                     loc[t,k,:,:]=ma.masked_where(maskin.squeeze(),loc[t,k,:,:]) # ma.expand_dims(ma.expand_dims(maskin,0),0)
         else:
             print('NOT Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
@@ -637,7 +631,7 @@ class G3D(object):
         
         avg = ma.empty((len(self.time),ztab.shape[0]-1))
         
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
 
         if maskin is not None:
             loc = self.maskvar(loc,maskin)
@@ -645,10 +639,10 @@ class G3D(object):
         if (len(self.dz.shape)==3)and(len(loc.shape)==4):            
             gridZU = self.zi[0,1:]
             gridZD = self.zi[0,:-1]
-            for k in xrange(ztab.shape[0]-1):
+            for k in range(ztab.shape[0]-1):
                 print('%s / %s'%(k+1,ztab.shape[0]-1))
                 dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
-                for t in xrange(len(self.time)):
+                for t in range(len(self.time)):
                     vol=ma.masked_where(loc[t].mask,dzloc*self.dy*self.dx)
                     bi=loc[t]*vol
                     #avg[t,k]= ma.sum(bi)/ma.sum(vol)
@@ -682,8 +676,8 @@ class G3D(object):
             loc    = self.maskvar(loc,maskin)
             denloc = self.maskvar(self.DEN,maskin)
             
-        for k in xrange(dtab.shape[0]-1):
-            for t in xrange(len(self.dates)):    
+        for k in range(dtab.shape[0]-1):
+            for t in range(len(self.dates)):    
                 lmask = (denloc[t] < dtab[k]) | (denloc[t] > dtab[k+1])
                 vol=ma.masked_where   ( lmask , self.dz*self.dy*self.dx )
                 mdloc= ma.masked_where( lmask , loc[t])
@@ -728,7 +722,7 @@ class G3D(object):
 
         hint=ma.empty( (loc.shape[0],loc.shape[1]) )
     
-        for t in xrange(len(self.time)):
+        for t in range(len(self.time)):
             hint[t]=ma.sum(loc[t]*self.dz*self.dx*self.dy,(1,2))
 
         return hint
@@ -778,8 +772,8 @@ class G3D(object):
         print('%s : %s'%(varname, isvar))
         if isvar:
             # for some reason the 4d variable is already loaded in memory
-            exec('loc=self.'+varname)
-            lloc=loc[:,:,j,i]
+            lloc=getattr(self,varname)[:,:,j,i]
+#            lloc=loc[:,:,j,i]
         else:
             # It's not loaded, but we'll load only what we need
             self.gload(varname,i=i,j=j)
@@ -815,15 +809,10 @@ class G3D(object):
             k=(np.abs(zloc-c3)).argmin()
         if isvar:
             # for some reason the 4d variable is already loaded in memory
-            exec('lloc=self.'+varname)
-            lloc=lloc[:,k,j,i]
+            lloc=getattr(self,varname)[:,k,j,i]
         else:
-            # It's not loaded, but we'll load only what we need
             self.gload(varname,i=i,j=j,k=k)
-            exec('lloc=self.'+varname+'i'+str(i)+'j'+str(j)+'k'+str(k))
-#        if lloc.shape[1]==1:
-#            k=0
-#        lloc=lloc[:,k]
+            lloc=getattr(self,varname+'i'+str(i)+'j'+str(j)+'k'+str(k))
 
         return lloc
 
@@ -836,13 +825,13 @@ class G3D(object):
         self.testvar(varname)
         self.testtime()
 
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         vint=ma.empty( (loc.shape[0],1,loc.shape[2],loc.shape[3]) )
 
-        for t in xrange(len(self.time)):
+        for t in range(len(self.time)):
             vint[t]=ma.sum(loc[t]*self.dz[0],0)
         
-        return vint # [:,None,:,:]
+        return vint 
 
 #########################################################################                                                                                                                                          
 # PROCESS : Vertical Mean
@@ -853,11 +842,11 @@ class G3D(object):
         self.testvar(varname)
         self.testtime()
 
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         vmean=ma.empty( (loc.shape[0],1, loc.shape[2],loc.shape[3]) )
 
         mdz = ma.masked_where( (self.z[0]>zsup) | (self.z[0]<zinf) ,self.dz[0])
-        for t in xrange(len(self.dates)):
+        for t in range(len(self.dates)):
             vmean[t] = ma.sum ( loc[t]*mdz , 0)
             vol      = ma.sum (        mdz , 0)
             vmean[t] = vmean[t]/vol
@@ -877,7 +866,7 @@ class G3D(object):
         exec('loc=self.'+varname)
         vmean=ma.empty( (loc.shape[0],1,loc.shape[2],loc.shape[3]) )
 
-        for t in xrange(len(self.time)):
+        for t in range(len(self.time)):
             mask3D   = (self.DEN[t]<=rhoinf)|(self.DEN[t]>rhosup)
             loct=ma.masked_where(mask3D,loc[t])
             vmeanloc = ma.sum ( loct*self.dz , 0)
@@ -901,7 +890,7 @@ class G3D(object):
         self.testvar(varname) 
         self.testtime()
         
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         
         clim=ma.empty([366,loc.shape[1],loc.shape[2],loc.shape[3]])
         climdates=[i.replace(year=2000) for i in self.dates]
@@ -922,7 +911,7 @@ class G3D(object):
             
             clim[ti]=ma.average(loc[idx],axis=0,weights=ww)
             
-        exec('self.clim_'+varname+'=clim')
+        setattr(self,'clim_'+varname,clim)
         self.climdates=clim.dates
         return clim
         
@@ -931,7 +920,7 @@ class G3D(object):
 
     def mapMonthlyClim(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, extend='max'):
 
-        exec('loc=self.clim_'+varname)
+        loc=getattr(self,'clim_'+varname)
         loclon=self.lon
         loclat=self.lat
         locbat=self.bat[0,0]
@@ -1379,7 +1368,7 @@ class G3D(object):
 
         if figout==None:
             figout=varname
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         if Clim==None: 
             Clim=[loc.min(),loc.max()]
 
@@ -1420,7 +1409,7 @@ class G3D(object):
             for t in range(len(self.dates)):
                 SA = gsw.SA_from_SP(self.SAL[t],p,tlon,tlat)
                 #self.DEN[t]=gsw.rho(SA,self.TEM[t],p)
-                PT = gsw.pt_from_t(SA,self.TEM[t],p)
+                PT = gsw.pt_from_t(SA,self.TEM[t],p,p_ref=0)
                 CT = gsw.CT_from_pt(SA,PT)
                 self.DEN[t]=gsw.sigma0(SA,CT)
                 
@@ -1439,9 +1428,9 @@ class G3D(object):
 #            exec('self.testvar(TEMi'+str(i)+'j'+str(j)+')')
             self.gload('SAL',i=i,j=j)
             self.gload('TEM',i=i,j=j)
-            exec('SALloc=self.SALi'+str(i)+'j'+str(j))
-            exec('TEMloc=self.TEMi'+str(i)+'j'+str(j))
-            for t in xrange(len(self.time)):
+            SALloc=getattr(self,'SALi'+str(i)+'j'+str(j))
+            TEMloc=getattr(self,'TEMi'+str(i)+'j'+str(j))
+            for t in range(len(self.time)):
                 if t==0:
                     print("SALloc.shape")
                     print(SALloc[t].shape)
@@ -1540,7 +1529,7 @@ class G3D(object):
 
             self.AVRDEN = np.tile(self.vertmean('DEN'),(1,31,1,1))
 
-            for t in xrange(len(self.time)):
+            for t in range(len(self.time)):
                 self.PEAv[t] = 9.81 *self.z*(self.AVRDEN[t]-self.DEN[t])
 
             self.PEA = self.vertint(PEAv)
@@ -1563,8 +1552,8 @@ class G3D(object):
 #        self.MLD = self.MLD/self.MLD*3.0
 
         for t in range(len(self.dates)):        
-            for i in xrange(self.MLD.shape[2]):
-                for j in xrange(self.MLD.shape[3]):
+            for i in range(self.MLD.shape[2]):
+                for j in range(self.MLD.shape[3]):
                     if ma.is_masked(self.MLD[t,0,i,j]):
                         continue
                     self.MLD[t,0,i,j]=np.interp(self.DENat3[t,:,i,j]+deltasig,self.DEN[t,:,i,j],self.z[0,:,i,j])
@@ -1582,8 +1571,8 @@ class G3D(object):
             self.Z20 = self.DOX[:,self.ksurface].copy()[:,None,:,:]
 
             for t in range(len(self.dates)):        
-                for i in xrange(self.Z20.shape[2]):
-                    for j in xrange(self.Z20.shape[3]):
+                for i in range(self.Z20.shape[2]):
+                    for j in range(self.Z20.shape[3]):
                         if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
                             continue
                         f = np.interp(20, self.DOX[t,::-1,i,j],self.z[0,::-1,i,j])
@@ -1620,8 +1609,8 @@ class G3D(object):
         self.R20 = self.DOX[:,self.ksurface].copy()[:,None,:,:]
 
         for t in range(len(self.dates)):        
-            for i in xrange(self.R20.shape[2]):
-                for j in xrange(self.R20.shape[3]):
+            for i in range(self.R20.shape[2]):
+                for j in range(self.R20.shape[3]):
                     if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
                         continue
                     f = np.interp(20, self.DOX[t,::-1,i,j],self.DEN[0,::-1,i,j],left=np.nan, right=np.nan )

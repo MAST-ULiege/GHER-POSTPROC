@@ -222,59 +222,69 @@ class N3D(G3D_class.G3D):
         '''
         UTILITY : test presence of a given variable, load it if needed. 
         '''
-        try:
-            if self.verbose: print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
-            if (i is None) and (j is None) and (k is None):
-                exec('self.'+varname)
-            elif (k is not None):
-                exec('self.'+varname+'k'+str(k))
-            elif (i is not None) and (j is not None):
-                exec('self.'+varname+'i'+str(i)+'j'+str(j))
-            isthere=True
-        except:
-            print('Not Loaded: of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
-            isthere=False
-            if doload:
-                if (any([x is not None for x in [i,j,k]])) and self.testvar(varname, doload=False):
-                    if self.verbose: print ('Getting v=%s for i :%s, j:%s, k:%s from the complete loaded %s'%(varname, i,j,k,varname) )
-                    if (k is not None) and (i is None) and (j is None):
-                        if (k=='bottom'):
-                            exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
-                            for i in range(self.bat.shape[2]):  
-                                for j in range(self.bat.shape[3]):
-                                    if (not ma.is_masked(self.kbottom[0,0,i,j])):
-                                        exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
-                        elif (k=='surface'):
-                            exec('self.'+varname+'ksurface=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
-                            exec('self.'+varname+'ksurface=self.'+varname+'[:,self.ksurface][:,None,:,:]')
-                        else: 
-                            exec('self.'+varname+'k'+str(k)+'=self.'+varname+'[:,k])[:,None,:,:]')
-                    if (i is not None) and (j is not None):
-                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'=self.'+varname+'[:,:,j,i])[:,:,None,None]')
-                else:
-                    self.gload(varname,i=i,j=j,k=k)
-                    isthere=True
+        if self.verbose: print( 'Checking presence of v=%s, i=%s, j=%s, k=%s'%(varname,i,j,k))
+        if (i is None) and (j is None) and (k is None):
+            isthere=hasattr(self,varname)
+        elif (k is not None):
+            isthere=hasattr(self,varname+'k'+str(k))
+        elif (i is not None) and (j is not None):
+            isthere=hasattr(self,varname+'i'+str(i)+'j'+str(j))
+        if doload and not isthere :
+            print ('Loading v=%s for i :%s, j:%s, k:%s'%(varname, i,j,k) )
+            if (any([x is not None for x in [i,j,k]])) and self.testvar(varname, doload=False):
+                if self.verbose: print ('Getting v=%s for i :%s, j:%s, k:%s from the complete loaded %s'%(varname, i,j,k,varname) )
+                if (k is not None) and (i is None) and (j is None):
+                    if (k=='bottom'):
+#                        exec('self.'+varname+'kbottom=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                        #setattr(self, varname+'kbottom',
+                        bid=ma.empty_like(getattr(self,varname)[:,self.ksurface])[:,None,:,:] 
+                        for i in range(self.bat.shape[2]):  
+                            for j in range(self.bat.shape[3]):
+                                if (not ma.is_masked(self.kbottom[0,0,i,j])):
+                                    bid[:,0,i,j]=getattr(self,varname)[:,self.kbottom[0,0,i,j],i,j]
+#                                    exec('self.'+varname+'kbottom[:,0,i,j]= self.'+varname+'[:,self.kbottom[0,0,i,j],i,j]')
+                        setattr(self, varname+'kbottom',bid)
+                    elif (k=='surface'):
+#                        bid=ma.empty_like(getattr(self,varname)[:,self.ksurface])[:,None,:,:])
+ #                           exec('self.'+varname+'ksurface=ma.empty_like(self.'+varname+'[:,self.ksurface])[:,None,:,:]')
+                        setattr(self, varname+'ksurface',getattr(self,varname)[:,self.ksurface][:,None,:,:])
+                        #exec('self.'+varname+'ksurface=self.'+varname+'[:,self.ksurface][:,None,:,:]')
+                    else:
+                        setattr(self, varname+'k'+str(k),getattr(self,varname)[:,k][:,None,:,:])
+#                            exec('self.'+varname+'k'+str(k)+'=self.'+varname+'[:,k])[:,None,:,:]')
+                if (i is not None) and (j is not None):
+                    setattr(self, varname+'i'+str(i)+'j'+str(j), getattr(self,varname)[:,:,j,i][:,:,None,None])
+#                        exec('self.'+varname+'i'+str(i)+'j'+str(j)+'=self.'+varname+'[:,:,j,i])[:,:,None,None]')
+            else:
+                self.gload(varname,i=i,j=j,k=k)
+                isthere=True
                     
                 # NEMO NEEDS EXTRA MASKING
-                if (i is None) and (j is None):
-                    self.testz()
-                    if self.verbose: print('remasking ' +varname)
-                    if (k is not None):
-                        varname=varname+'k'+k
-                    exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
-                    # This ensures that all variables comes with 4 dimension, eventually with length=1
-                    exec('locshape=self.'+varname+'.shape')
-                    if len(locshape)!=4: # a dimension is missing. Most probably it's depth for a 2D variable, so we'll deal with that for the moment.
-                        if locshape==(len(self.dates),len(self.lat),len(self.lon)):
-                            exec('self.'+varname+'=self.'+varname+'[:,None,:,:]')
-                        else:
-                            print('missing dim in testvar, for %s of dimensions %s'%(varname,locshape))
-                    exec('nt=self.'+varname+'.shape[0]')
-                    for t in range(nt):
+            if (i is None) and (j is None):
+                self.testz()
+                if self.verbose: print('remasking ' +varname)
+                if (k is not None):
+                    varname=varname+'k'+k
+                setattr(self,varname, ma.masked_array(getattr(self,varname),mask=False))
+#                exec('self.'+varname+'=ma.masked_array(self.'+varname+',mask=False)')
+                # This ensures that all variables comes with 4 dimension, eventually with length=1
+                locshape=getattr(self,varname).shape
+#                exec('locshape=self.'+varname+'.shape')
+                if len(locshape)!=4: # a dimension is missing. Most probably it's depth for a 2D variable, so we'll deal with that for the moment.
+                    if locshape==(len(self.dates),len(self.lat),len(self.lon)):
+#                        exec('self.'+varname+'=self.'+varname+'[:,None,:,:]')
+                        setattr(self,varname, getattr(self,varname)[:,None,:,:])
+                    else:
+                        print('missing dim in testvar, for %s of dimensions %s'%(varname,locshape))
+                nt=getattr(self,varname).shape[0]
+                nz=getattr(self,varname).shape[1]
+                bid=getattr(self, varname)
+                for t in range(nt):
                     #    if (k is not None):
                     #        exec('self.'+varname+'k'+k+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'k'+k+'.shape[1]]==0, self.'+varname+'k'+k+'[t])')
                     #    else:
-                        exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')
+                    bid[t]=ma.masked_where(self.landmask[0,:nz]==0,bid[t])
+#                    exec('self.'+varname+'[t]=ma.masked_where(self.landmask[0,:self.'+varname+'.shape[1]]==0, self.'+varname+'[t])')
 
                 #elif (k is not None):
                 #    print('remasking ' +varname+str(k))
