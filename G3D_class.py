@@ -640,7 +640,7 @@ class G3D(object):
             gridZU = self.zi[0,1:]
             gridZD = self.zi[0,:-1]
             for k in range(ztab.shape[0]-1):
-                print('%s / %s'%(k+1,ztab.shape[0]-1))
+                if self.verbose: print('%s / %s'%(k+1,ztab.shape[0]-1))
                 dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
                 for t in range(len(self.time)):
                     vol=ma.masked_where(loc[t].mask,dzloc*self.dy*self.dx)
@@ -648,9 +648,9 @@ class G3D(object):
                     #avg[t,k]= ma.sum(bi)/ma.sum(vol)
                     avg[t,k]= ma.masked_where( (float(bi.count())/float(bi.size))<0.1,ma.sum(bi)/ma.sum(vol))
                     if (t==10):
-                        print('k %s : from %s to %s' %(k,ztab[k],ztab[k+1]))
-                        print('total volume considered for this layer :  %s km^3' %(ma.sum(vol)/1e9))
-                        print('mean age :  %s' %(avg[t,k]))
+                        if self.verbose: print('k %s : from %s to %s' %(k,ztab[k],ztab[k+1]))
+                        if self.verbose: print('total volume considered for this layer :  %s km^3' %(ma.sum(vol)/1e9))
+                        if self.verbose: print('mean val :  %s' %(avg[t,k]))
                     
         zforplot=(ztab[:-1]+ztab[1:])/2
         return avg, zforplot
@@ -1086,7 +1086,7 @@ class G3D(object):
 
     def SeasonStrip(self, varname,title=None,cmapname='haline',Clim=None,figsuffix='', batlines=True, subdomain=None, extend="max", diff=False, difflag='init'):
 
-        exec('loc=self.'+varname+'.copy()')
+        loc=getattr(self,varname).copy()
 
         self.testz()
         loclon=self.lon
@@ -1112,8 +1112,8 @@ class G3D(object):
             print('!! proceeding now for the surface layer .. ''')
             loc=loc[:,self.ksurface][:,None,:,:]
         if (title==None): title=varname
-        if Clim==None : Clim=[loc.min(),loc.max()]
-        exec('cmap=cmocean.cm.'+cmapname)
+        if Clim==None : Clim=[np.percentile(loc,5),np.percentile(loc,95)]
+        cmap=getattr(cmocean.cm,cmapname)
         # usefull to check specific evolution of a variable
         if diff:
             locinit=loc[0].copy()
@@ -1127,7 +1127,7 @@ class G3D(object):
                     except TypeError:
                         Print( 'difflag should be ''init'' or an integer (for now timesteps)')
             Clim=[-max(abs(loc.min()),abs(loc.max())), max(abs(loc.min()),abs(loc.max()))]
-            exec('cmap=cmocean.cm.'+'balance')
+            cmap=cmocean.cm.balance
 
         # computing number of sub-plots
         cols = 6
@@ -1186,7 +1186,7 @@ class G3D(object):
 
     def map2D(self, varname,cmapname="haline", subdomain=None, figout=None, title=None, Clim=None, scatmat=None,extend='max', batlines=True):
         self.testz()
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         loclon=self.lon
         loclat=self.lat
         locbat=self.bat[0,0]
@@ -1248,7 +1248,7 @@ class G3D(object):
     def plotprofile (self, varname, z=None,cmapname="haline", figout=None, title=None, Clim=None, zlim=None):
         if figout==None:
             figout=varname
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         if z.all()==None:
             z=range(loc.shape[1])
         if zlim!=None:
@@ -1258,7 +1258,7 @@ class G3D(object):
             z=z[min(zimin,zimax):max(zimin,zimax)]
         if Clim==None: 
             Clim=[loc.min(),loc.max()]
-        exec('cmap=cmocean.cm.'+cmapname)
+        cmap=getattr(cmocean.cm,cmapname)
 
         print(loc.shape)
 #        print(z.shape)
@@ -1290,7 +1290,7 @@ class G3D(object):
             varnames=[varname]
         if figout==None:
             figout=varname
-        exec('loc=self.'+varname)
+        loc=getattr(self,varname)
         if Clim==None:  
             Clim=[loc.min(),loc.max()]
 
@@ -1303,7 +1303,7 @@ class G3D(object):
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formator)
         for v in varnames:
-            exec('loc=self.'+v)
+            loc=getattr(self,v)
             cs=plt.plot(self.dates, loc, label=v, alpha=0.8)
         plt.ylim(Clim)
         plt.legend()
@@ -1325,7 +1325,7 @@ class G3D(object):
 
         if Clim==None:  
             for r in range(len(G3Ds)):
-                exec('loc=G3Ds[r].'+varname)
+                loc=getattr(G3Ds[r],varname)
                 Clim=[loc.min(),loc.max()]
                 if r==0:
                     Climt=Clim
@@ -1346,7 +1346,7 @@ class G3D(object):
         ax.xaxis.set_major_formatter(formator)
         for v in varnames:
             for r,G in enumerate(G3Ds):
-                exec('loc=G.'+v)
+                loc=getattr(G,v)
                 cs=plt.plot(G.dates, loc, label = v +'  '+Glabs[r], alpha=0.8)
         plt.ylim(Climt)
         plt.legend()

@@ -343,20 +343,26 @@ class N3D(G3D_class.G3D):
         print(self.infile)
         self.testvar('vozocrtx', i=i,j=j, k=k)
         if all ([x is None for x in [i,j,k]]):
-            U1=self.vozocrtx#[:,:,:,:-1]
+            U1=self.vozocrtx
             U2=np.concatenate((U1[:,:,:,1:],U1[:,:,:,[-1]]), axis=3)
             self.U=(U1+U2)/2
             del self.vozocrtx
         elif k is not None:
-            exec('U1=self.vozocrtxk'+str(k))
+            U1 = getattr(self,'vozocrtxk'+str(k))
+#            exec('U1=self.vozocrtxk'+str(k))
             U2=np.concatenate((U1[:,:,:,1:],U1[:,:,:,[-1]]), axis=3)
-            exec('self.Uk'+k+'=(U1+U2)/2')
-            exec('del self.vozocrtxk'+k)
+#            exec('self.Uk'+k+'=(U1+U2)/2')
+            setattr(self,'Uk'+k,(U1+U2)/2)
+            delattr(self,'vozocrtxk'+k)
+#            exec('del self.vozocrtxk'+k)
         elif (i is not None) and (j is not None):
-            exec('U1=self.vozocrtxi'+str(i)+'j'+str(j))
+#            exec('U1=self.vozocrtxi'+str(i)+'j'+str(j))
+            U1 = getattr(self,'vozocrtxi'+str(i)+'j'+str(j))
             self.testvar('vozocrtx', i=i+1,j=j, k=k)
-            exec('U2=self.vozocrtxi'+str(i+1)+'j'+str(j))
-            exec('self.Ui'+str(i)+'j'+str(j)+'=(U1+U2)/2')
+            U2 = getattr(self,'vozocrtxi'+str(i+1)+'j'+str(j))
+#            exec('U2=self.vozocrtxi'+str(i+1)+'j'+str(j))
+#            exec('self.Ui'+str(i)+'j'+str(j)+'=(U1+U2)/2')
+            setattr(self,'Ui'+str(i)+'j'+str(j),(U1+U2)/2)
 
         self.infile=self.infile.replace('grid_U','grid_T')
 
@@ -375,14 +381,63 @@ class N3D(G3D_class.G3D):
             self.V=(V1+V2)/2
             del self.vomecrty
         elif k is not None:
-            exec('V1=self.vomecrtyk'+str(k))
+            V1 = getattr(self,'vomecrtyk'+str(k))
+#            exec('V1=self.vomecrtyk'+str(k))
             V2=np.concatenate((V1[:,:,1:,:],V1[:,:,[-1],:]), axis=2)
-            exec('self.Vk'+k+'=(V1+V2)/2')
-            exec('del self.vomecrtyk'+k)
+            setattr(self,'Vk'+k,(V1+V2)/2)
+            delattr(self,'vomecrtyk'+k)
+#            exec('self.Vk'+k+'=(V1+V2)/2')
+#            exec('del self.vomecrtyk'+k)
         elif (i is not None) and (j is not None):
-            exec('V1=self.vomecrtyi'+str(i)+'j'+str(j))
+#            exec('V1=self.vomecrtyi'+str(i)+'j'+str(j))
+            V1=getattr(self,'vomecrtyi'+str(i)+'j'+str(j))
             self.testvar('vomecrty', i=i,j=j+1, k=k)
-            exec('V2=self.vomecrtyi'+str(i)+'j'+str(j+1))
-            exec('self.Vi'+str(i)+'j'+str(j)+'=(V1+V2)/2')
+            V2=getattr(self,'vomecrtyi'+str(i)+'j'+str(j+1))
+#            exec('V2=self.vomecrtyi'+str(i)+'j'+str(j+1))
+            setattr(self,'Vi'+str(i)+'j'+str(j),(V1+V2)/2)
+#            exec('self.Vi'+str(i)+'j'+str(j)+'=(V1+V2)/2')
 
         self.infile=self.infile.replace('grid_V','grid_T')
+
+############################################################################
+    '''    
+    def avgprofile(self,varname,
+                   ztab=-1*np.concatenate([np.arange(0,10,2), np.arange(10,40,5),np.arange(50,120,10),np.arange(120,300,50),np.arange(300,1000,200)]),
+                   maskin=None
+                   ):
+        
+        #The idea is to get an average profile as a function of time                                                                                                                                               
+        #return is 2D : [z,time]                                                                                                                                                                                   
+        #sigma-space makes it a bit complicate                                                                                                                                                           
+         
+
+        self.testz()
+        self.testvar(varname)
+        self.testtime()
+
+        avg = ma.empty((len(self.time),ztab.shape[0]-1))
+
+        loc=getattr(self,varname)
+
+        if maskin is not None:
+            loc = self.maskvar(loc,maskin)
+
+        if (len(self.dz.shape)==3)and(len(loc.shape)==4):
+            gridZU = self.zi[0,1:]
+            gridZD = self.zi[0,:-1]
+            for k in range(ztab.shape[0]-1):
+                if self.verbose: print('%s / %s'%(k+1,ztab.shape[0]-1))
+                dzloc= ma.maximum(ma.zeros(self.dz.shape), np.minimum(gridZU, ztab[k])-np.maximum(gridZD, ztab[k+1]))
+                for t in range(len(self.time)):
+                    vol=ma.masked_where(loc[t].mask,dzloc*self.dy*self.dx)
+                    bi=loc[t]*vol
+                    #avg[t,k]= ma.sum(bi)/ma.sum(vol)                                                                                                                                                               
+                    avg[t,k]= ma.masked_where( (float(bi.count())/float(bi.size))<0.1,ma.sum(bi)/ma.sum(vol))
+                    if (t==10):
+                        if self.verbose: print('k %s : from %s to %s' %(k,ztab[k],ztab[k+1]))
+                        if self.verbose: print('total volume considered for this layer :  %s km^3' %(ma.sum(vol)/1e9))
+                        if self.verbose: print('mean val :  %s' %(avg[t,k]))
+
+        zforplot=(ztab[:-1]+ztab[1:])/2
+        return avg, zforplot
+    '''
