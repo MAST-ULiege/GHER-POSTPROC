@@ -15,7 +15,7 @@ import matplotlib.dates as mdates
 #from scipy import interpolate 
 #from mpl_toolkits.basemap import Basemap
 import glob
-
+import cartopy.crs as ccrs
 
 def FullLoad(YAML_FILE = 'local.yml', dstring=''):
     try:
@@ -339,16 +339,16 @@ class G3D(object):
 
             #copy dimensions
             for name, dimension in inf.dimensions.items():
-                if name  in ['longitude','latitude']: 
+                if name  in [londimname,latdimname]: 
                     regf.createDimension(name, len(dimension) if not dimension.isunlimited() else None)
 
             for name, variable in inf.variables.items():
                 # take out the variable you don't want
-                if name  in ['longitude','latitude']: 
+                if name  in [londimname,latdimname]: 
                     x = regf.createVariable(name, variable.datatype, variable.dimensions)
                     regf.variables[name][:] = inf.variables[name][:]
 
-            regf.createVariable(regionvarame, np.float32,('latitude', 'longitude'),zlib=True)
+            regf.createVariable(regionvarame, np.float32,(latdimname, londimname),zlib=True)
             regf.variables[regionvarame][:]=regions
             
             
@@ -424,7 +424,8 @@ class G3D(object):
                     nc.createVariable(varname, np.float32, (self.timevarname, self.depthdimname, self.latdimname, self.londimname),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
                     nc.createVariable(varname, np.float32, (self.timevarname, 'singleton', self.latdimname, self.londimname),zlib=True)
-                    
+                elif ((ndim == 2) and (depth is None)and (dtab is None)) :  # assuming here : lat,lon
+                    nc.createVariable(varname, np.float32, (self.latdimname,self.londimname), zlib=True)                 
                 elif ((ndim == 2) and (depth is not None)) :  # assuming here : time, depth
                     if self.verbose: print('I''m in Depth option for gstore 2D')
                     try:
@@ -944,28 +945,27 @@ class G3D(object):
             loc=loc[:,self.ksurface][:,None,:,:]
         if (title==None): title=varname
         if Clim==None : Clim=[loc.min(),loc.max()]
-        exec('cmap=cmocean.cm.'+cmapname)
+        #exec('cmap=cmocean.cm.'+cmapname)
+        cmap=getattr(cmocean.cm,cmapname)
+        fig  = plt.figure(figsize=(12, 10))
 
-        fig, aaxes = plt.subplots(4,3,figsize=(10, 12))
-
-        parallels = np.arange(np.floor(min(loclat)),np.ceil(max(loclat)),1.)
-        meridians = np.arange(np.floor(min(loclon)),np.ceil(max(loclon)),1.)
+#        parallels = np.arange(np.floor(min(loclat)),np.ceil(max(loclat)),1.)
+#        meridians = np.arange(np.floor(min(loclon)),np.ceil(max(loclon)),1.)
         llon,llat = np.meshgrid(loclon,loclat)
 
-        for monthi in range(1,12+1):
+        for monthi in range(1,13):
             indx = [i for i,x in enumerate(self.climdates) if (x.month==monthi)]
             
             try: # if BaseMap is installed and OK
-                m    = Basemap(llcrnrlat=loclat[0],urcrnrlat=loclat[-1],llcrnrlon=loclon[0],urcrnrlon=loclon[-1],\
-                                   resolution='i',ax=aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ])
-                xx, yy = m(llon,llat)
-                m.drawcoastlines()
-                m.drawparallels(parallels,labels=[1,0,0,0],fontsize=10)
-                m.drawmeridians(meridians,labels=[1,0,0,0],fontsize=10)
-                cs = m.contourf(xx,yy,loc[indx,0].mean(axis=0),cmap=cmocean.cm.deep, extend=extend)
+                ax = fig.add_subplot(4,3,monthi,projection=ccrs.PlateCarree())
+                ax.set_extent([min(loclon),max(loclon), min(loclat), max(loclat) ])
+                ax.gridlines()  
+                ax.coastlines(resolution='50m')
+
+                cs = ax.contourf(llon,llat,loc[indx,0].mean(axis=0),cmap=cmap, extend=extend, levels= np.linspace(Clim[0],Clim[1],20))
                 if batlines: 
-                    m.contour(xx,yy,G.bat[0,:,:140],levels=[40,80,120], colors='k',linestyles='dashed')
-                m.text(31.0,41.5,set_title(calendar.month_name[monthi]))
+                    ax.contour(llon,llat,locbat,levels=[40,80,120], colors='k',linestyles='dashed')
+                ax.text(.8,.9,calendar.month_name[monthi], transform=ax.transAxes )
 
             except:
                 cs = aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\

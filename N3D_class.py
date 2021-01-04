@@ -9,7 +9,7 @@ import G3D_class
 import glob
 
 ######################################################################
-def FullLoad(YAML_FILE = 'local.yml', dstring='1d', begdate=None, enddate=None):
+def FullLoad(YAML_FILE = 'local.yml', dstring='1d', begdate=None, enddate=None, filetype='ptrc_T'):
     '''
     Used to prepare and manipulate filelist BEFORE instantiation of the class. 
     '''
@@ -24,7 +24,7 @@ def FullLoad(YAML_FILE = 'local.yml', dstring='1d', begdate=None, enddate=None):
     except Exception:
         print("".join(("\n Error in FullLoad : A file called local.yml should be present with RESULTDIR (repertory with model ouptuts) and DSTRING (eg. '1m' or '1d') values","'\n")))
 
-    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*ptrc_T*.nc*")]
+    mlist =  [f for f in glob.glob(resultdir+"*"+dstring+"*"+filetype+"*.nc*")]
     mlist.sort()
     mlist=[m.replace(resultdir,'') for m in mlist]
 
