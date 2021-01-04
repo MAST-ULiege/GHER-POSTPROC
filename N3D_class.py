@@ -115,7 +115,7 @@ class N3D(G3D_class.G3D):
         self.londimname   = config['LONDIMNAME'] if ('LONDIMNAME' in config) else 'x'
 
 ###################################################################### 
-    def timeclean(self):
+    def timeclean(self, begdate=None, enddate=None):
         '''
         UTILITY : Ensure monotonic, non-redundant dates in an instance of the class, 
         as could result from gathering files with redundant times entries (eg. from model run interruption).
@@ -126,13 +126,18 @@ class N3D(G3D_class.G3D):
         indx=[ld.index(i) for i in sorted(np.unique(self.dates))]
         
         otl = len(self.dates)
-        # list of array attributes of self  with valid time dimension 
+        # list of array attributes of self with valid time dimension 
         bb  = [ a for a in self.__dict__  if isinstance(self.__getattribute__(a),np.ndarray) ]
         bbb = [ b for b in bb if self.__getattribute__(b).shape[0]==otl]
 
         for b in bbb:
             print('Time-cleaning '+b)
             self.__setattr__(b, self.__getattribute__(b)[indx])
+
+        if ((begdate is not None) and (enddate is not None)):
+            indx = [i for i,d in enumerate(self.dates) if (d>=begdate and d<=enddate)]
+            for b in bbb:
+                self.__setattr__(b, self.__getattribute__(b)[indx])
 
 ######################################################################                                                                                                                                             
     def updateparams(self,f):
