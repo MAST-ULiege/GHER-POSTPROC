@@ -1117,7 +1117,7 @@ class G3D(object):
             print('!! proceeding now for the surface layer .. ''')
             loc=loc[:,self.ksurface][:,None,:,:]
         if (title==None): title=varname
-        if Clim==None : Clim=[np.percentile(loc,5),np.percentile(loc,95)]
+        if Clim==None : Clim=[np.percentile(loc,1),np.percentile(loc,99)]
         cmap=getattr(cmocean.cm,cmapname)
         # usefull to check specific evolution of a variable
         if diff:
