@@ -155,7 +155,7 @@ bb=getattr(Na,'clim_'+vlist2D[0])[0].copy()
 bb[~bb.mask]=cluster_index
 
 
-N.regio=bb[:,None,:,:]
-N.gstore('regio')
+Na.regio=bb[:,None,:,:]
+Na.gstore('regio')
 
 #N.saveregionmask(bb,'regio.nc') 

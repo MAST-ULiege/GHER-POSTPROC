@@ -329,9 +329,10 @@ class G3D(object):
 ######################################################################
 # UTILITY : Save a map of regions (as integers)
 #
-    def saveregionmask(self,regions,outname):
-        regionvarame='region'
-        
+    def saveregionmask(self,regions,outname,regionvarame='region'):
+        '''
+        UTILITY : Save a map of regions (as integers)
+        '''        
         with Dataset(self.infile,'r') as inf, Dataset(self.resultdir+outname+'.nc','w') as regf:
             # copy attributes
             for name in inf.ncattrs():
@@ -339,16 +340,16 @@ class G3D(object):
 
             #copy dimensions
             for name, dimension in inf.dimensions.items():
-                if name  in [londimname,latdimname]: 
+                if name  in [self.londimname,self.latdimname]: 
                     regf.createDimension(name, len(dimension) if not dimension.isunlimited() else None)
 
             for name, variable in inf.variables.items():
                 # take out the variable you don't want
-                if name  in [londimname,latdimname]: 
+                if name  in [self.londimname,self.latdimname]: 
                     x = regf.createVariable(name, variable.datatype, variable.dimensions)
                     regf.variables[name][:] = inf.variables[name][:]
 
-            regf.createVariable(regionvarame, np.float32,(latdimname, londimname),zlib=True)
+            regf.createVariable(regionvarame, np.float32,(self.latdimname, self.londimname),zlib=True)
             regf.variables[regionvarame][:]=regions
             
             
@@ -424,10 +425,11 @@ class G3D(object):
                     nc.createVariable(varname, np.float32, (self.timevarname, self.depthdimname, self.latdimname, self.londimname),zlib=True)
                 elif ndim == 3:  # assuming here : time, lat,lon 
                     nc.createVariable(varname, np.float32, (self.timevarname, 'singleton', self.latdimname, self.londimname),zlib=True)
-                elif ((ndim == 2) and (depth is None)and (dtab is None)) :  # assuming here : lat,lon
+                elif ((ndim == 2) and (depth is None)and (dtab is None)) :  # assuming here : lat,lon            
+                    print('lat,lon')
                     nc.createVariable(varname, np.float32, (self.latdimname,self.londimname), zlib=True)                 
                 elif ((ndim == 2) and (depth is not None)) :  # assuming here : time, depth
-                    if self.verbose: print('I''m in Depth option for gstore 2D')
+                    if self.verbose: print('time,depth')
                     try:
                         nc.variables[self.depthvarname][:]
                     except:
