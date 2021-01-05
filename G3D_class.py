@@ -1991,7 +1991,7 @@ class G3D(object):
 # VARIABLE : Oxidation
     def instance_Oxidation(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
-            self.Oxidation = self.sumvar({'Oxidation_by_oxygen':-1},i,j,k)
+            self.Oxidation = self.sumvar({'OXIDATIONBYDOX':-1},i,j,k)
         else:
             print('NEED TO BE COMPLETED : instance_Oxidation')
 

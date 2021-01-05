@@ -404,6 +404,14 @@ class N3D(G3D_class.G3D):
 
         self.infile=self.infile.replace('grid_V','grid_T')
 
+
+
+    def instance_BenthicOxygenFlux(self,i=None,j=None,k=None):
+        self.infile=self.infile.replace('ptrc_T','btrc_T')
+        self.testvar('botfluxDOX', i=i,j=j, k=k)
+        self.infile=self.infile.replace('btrc_T','ptrc_T')
+
+
 ############################################################################
     '''    
     def avgprofile(self,varname,
