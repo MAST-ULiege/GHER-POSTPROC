@@ -15,7 +15,7 @@ import matplotlib.dates as mdates
 #from scipy import interpolate 
 #from mpl_toolkits.basemap import Basemap
 import glob
-import cartopy.crs as ccrs
+#import cartopy.crs as ccrs
 
 def FullLoad(YAML_FILE = 'local.yml', dstring=''):
     try:
@@ -970,13 +970,16 @@ class G3D(object):
                 ax.text(.8,.9,calendar.month_name[monthi], transform=ax.transAxes )
 
             except:
-                cs = aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
+                ax = fig.add_subplot(4,3,monthi)
+#                fig, aaxes = plt.subplots(4,3,figsize=(10, 12))
+#                fig,aaxes  = plt.figure(figsize=(12, 10))
+                cs = ax.contourf(loclon, loclat,loc[indx,0].mean(axis=0),\
                                                                                   levels= np.linspace(Clim[0],Clim[1],20),\
                                                                                   cmap=cmap, extend=extend)
                 if batlines:
-                    aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].contour(loclon, loclat,locbat,levels=[40,80,120], colors='k',linestyles='dashed')
+                    ax.contour(loclon, loclat,locbat,levels=[40,80,120], colors='k',linestyles='dashed')
                     
-                aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].text(31.0,43.5,calendar.month_name[monthi])
+                ax.text(31.0,43.5,calendar.month_name[monthi])
             #aaxes[int(np.ceil((monthi-1)/3)),(monthi-1)%3 ].set_title(calendar.month_name[monthi])
 
         fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.2, right=0.95, left=0.05, top=0.95)
