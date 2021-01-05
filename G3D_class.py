@@ -1781,19 +1781,6 @@ class G3D(object):
         else:
             print('NEED TO BE COMPLETED : instance_Ngel')
 
-############################################################################
-# VARIABLE : Ndis, Nitrogen in dissolved inorganic form
-    '''
-    def instance_Ndis(self, i=None, j=None, k=None):
-        if (i is None) and (j is None) and (k is None):
-            self.testvar('NOS')
-            self.testvar('NHS')
-            self.Ndis = self.NHS+self.NOS
-#            del self.NOS, self.NHS
-        else:
-            print('NEED TO BE COMPLETED : instance_Ndis')
-    '''
-
 ###########################################################################
 
     def instance_Ndis(self, i=None, j=None, k=None):
@@ -1969,3 +1956,129 @@ class G3D(object):
             loc[idx]=loc_shifted[idx]
 
         self.__setattr__(vvar,loc)
+
+
+############################################################################
+# VARIABLE : AirSeaOxygenFlux_Source
+
+    def instance_AirSeaOxygenFlux_Source(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('AirSeaOxygenFlux')
+            self.AirSeaOxygenFlux_Source = ma.where(self.AirSeaOxygenFlux>0,self.AirSeaOxygenFlux,0)
+        else:
+            print('NEED TO BE COMPLETED : instance_AirSeaOxygenFlux_Source')
+
+############################################################################
+# VARIABLE : AirSeaOxygenFlux_Sink
+
+    def instance_AirSeaOxygenFlux_Sink(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.testvar('AirSeaOxygenFlux')
+            self.AirSeaOxygenFlux_Sink = ma.where(self.AirSeaOxygenFlux<0,self.AirSeaOxygenFlux,0)
+        else:
+            print('NEED TO BE COMPLETED : instance_AirSeaOxygenFlux_Sink')
+
+
+############################################################################
+# VARIABLE : Photosynthesis
+    def instance_Photosynthesis(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Photosynthesis = self.sumvar({'Carbon_UptakeFlagellates':1,'Carbon_UptakeDiatoms':1,'Carbon_UptakeEmiliana':1,'PhytoExtraDOC':1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Photosynthesis')
+
+############################################################################
+# VARIABLE : Oxidation
+    def instance_Oxidation(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Oxidation = self.sumvar({'Oxidation_by_oxygen':-1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Oxidation')
+
+############################################################################
+# VARIABLE : Resp_Phyto
+    def instance_Resp_Phyto(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Phyto = self.sumvar({'TotalRespirationFlagellates':-1,'TotalRespirationDiatoms':-1,'TotalRespirationEmiliana':-1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Resp_Phyto')
+
+############################################################################
+# VARIABLE : Resp_Bac
+    def instance_Resp_Bac(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Bac = self.sumvar({'bac_oxygenconsumption':-1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Resp_Bac')
+
+############################################################################
+# VARIABLE : Resp_Zoo
+    def instance_Resp_Zoo(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Zoo = self.sumvar({'TotalRespiration_Zoo':-1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Resp_Zoo')
+
+############################################################################
+# VARIABLE : Resp_Gel
+    def instance_Resp_Gel(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Gel = self.sumvar({'TotalRespiration_Gel':-1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Resp_Gel')
+
+############################################################################
+# VARIABLE : Photosynthesis2D
+    def instance_Photosynthesis2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Photosynthesis2D = self.vertint('Photosynthesis')
+        else:
+            print('NEED TO BE COMPLETED : Photosynthesis2D')
+
+############################################################################
+# VARIABLE : PhytoNitrateReduction2D
+    def instance_PhytoNitrateReduction2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.PhytoNitrateReduction2D = self.vertint('PhytoNitrateReduction')
+        else:
+            print('NEED TO BE COMPLETED : PhytoNitrateReduction2D')
+
+############################################################################
+# VARIABLE : Resp_Phyto2D
+    def instance_Resp_Phyto2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Phyto2D = self.vertint('Resp_Phyto')
+        else:
+            print('NEED TO BE COMPLETED : Resp_Phyto2D')
+
+############################################################################
+# VARIABLE : Resp_Zoo2D
+    def instance_Resp_Zoo2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Zoo2D = self.vertint('Resp_Zoo')
+        else:
+            print('NEED TO BE COMPLETED : Resp_Zoo2D')
+
+############################################################################
+# VARIABLE : Resp_Gel2D
+    def instance_Resp_Gel2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Gel2D = self.vertint('Resp_Gel')
+        else:
+            print('NEED TO BE COMPLETED : Resp_Gel2D')
+
+############################################################################
+# VARIABLE : Resp_Bac2D
+    def instance_Resp_Bac2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Resp_Bac2D = self.vertint('Resp_Bac')
+        else:
+            print('NEED TO BE COMPLETED : Resp_Bac2D')
+
+############################################################################
+# VARIABLE : Resp_Bac2D
+    def instance_Oxidation2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Oxidation2D = self.vertint('Oxidation')
+        else:
+            print('NEED TO BE COMPLETED : Oxidation2D')
