@@ -469,7 +469,6 @@ class G3D(object):
 # PROCESS : FULL INTEGRATION
 
     def integratespatial (self, varname, maskin=None): 
-    # TODO allows for a optional mask, that could be 2D, 3D or 4D. 
     #    if dz.shape!=field.shape:
     #        print("Wrong Shapes")
     #        return
@@ -481,15 +480,19 @@ class G3D(object):
         self.testtime()
 
         integrated=ma.empty(len(self.dates))
-        loc=getattr(self,varname)
+        loc=getattr(self,varname).copy()
+
+        if (maskin is not None):
+            loc=self.maskvar(loc, maskin)
+
         print('dz: %s  and field: %s'%( len(self.dz.shape),len(loc.shape)))
         if (len(self.dz.shape)>=3)and(loc.shape[1]>1):
-            print("4D")
+            print("3D+1 ")
             for t in range(len(self.dates)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
         elif (len(self.dz.shape)>=3)and(loc.shape[1]==1):
-            print("2D")
+            print("2D+1")
             for t in range(len(self.dates)):
                 bi=loc[t]*self.dy*self.dx
                 integrated[t] = ma.sum(bi)
@@ -513,26 +516,29 @@ class G3D(object):
                         
         avg=ma.empty(len(self.dates))
         loc=getattr(self,varname).copy()
-        print('In avgptial \n dz: %s  \n Field: %s'%( len(self.dz.shape),len(loc.shape)))
+        if self.verbose: print('In avgptial \n dz: %s  \n Field: %s'%( len(self.dz.shape),len(loc.shape)))
+
+        if (maskin is not None):
+            loc=self.maskvar(loc, maskin)
 
         # DIMENSIONAL CASE 
         # 2D VARIABLE
-        print(loc.shape)
+        if self.verbose: print(loc.shape)
         if ( loc.shape[1]==1 ):
-            print('2D variable')
-            # MASKING
-            if (maskin is not None):
-                print('Found Mask with ' + str(maskin.sum()) + ' masked points.')
-                if len(maskin.squeeze().shape)==2:
-                    print('static 2D mask .. OK')
-                    for t in range(len(self.time)):
-                        loc[t]=ma.masked_where(maskin.squeeze()[None,:,:],loc[t])
-                elif ((len(maskin.squeeze().shape)==3) and (maskin.shape[0]==self.time.shape)):
-                    print('dynamic 2D mask .. OK')
-                    for t in range(len(self.time)):
-                        loc[t]=ma.masked_where(maskin.squeeze()[t],loc[t])
-                else:
-                    print('Mask dimension not understood: %s'%(maskin.shape) )
+            print('2D+1 variable')
+#            # MASKING
+#            if (maskin is not None):
+#                print('Found Mask with ' + str(maskin.sum()) + ' masked points.')
+#                if len(maskin.squeeze().shape)==2:
+#                    print('static 2D mask .. OK')
+#                    for t in range(len(self.time)):
+#                        loc[t]=ma.masked_where(maskin.squeeze()[None,:,:],loc[t])
+#                elif ((len(maskin.squeeze().shape)==3) and (maskin.shape[0]==self.time.shape)):
+#                    print('dynamic 2D mask .. OK')
+#                    for t in range(len(self.time)):
+#                        loc[t]=ma.masked_where(maskin.squeeze()[t],loc[t])
+#                else:
+#                    print('Mask dimension not understood: %s'%(maskin.shape) )
 
             # AVERAGING
             for t in range(len(self.time)):
@@ -542,9 +548,9 @@ class G3D(object):
 
         # 3D VARIABLE
         elif (loc.shape[1]>1):
-            if (maskin is not None):
-                print('Masking of 3D vars not implemented yet .. Complete G3D_class.py') 
-            print("3D variable")
+#            if (maskin is not None):
+#                print('Masking of 3D vars not implemented yet .. Complete G3D_class.py') 
+            print("3D+1 variable")
             for t in range(len(self.time)):
                 bi=loc[t]*self.dz*self.dy*self.dx
                 vol=ma.masked_where(bi.mask,self.dz*self.dy*self.dx)
@@ -604,14 +610,38 @@ class G3D(object):
 
     def maskvar(self,loc, maskin):
     
+        # MASKING
+        
+        if self.verbose: print('Got mask with ' + str(maskin.sum()) + ' masked points.')
+        if self.verbose: print('Masking '+ str(len(loc.squeeze().shape))+ 'D variable with static '+str(len(maskin.squeeze().shape))+'D mask')
+
+        if len(maskin.squeeze().shape)==2:
+            print('static 2D mask .. OK')
+            maskin = np.tile(maskin.squeeze(),(1,loc.shape[1],1,1))
+            for t in range(len(self.time)):
+                loc[t]=ma.masked_where(maskin[0],loc[t])
+        elif ((len(maskin.squeeze().shape)==3) and (maskin.shape[0]==self.time.shape)):
+            print('dynamic 2D mask .. OK')
+            maskin = np.tile(maskin.squeeze(),(1,loc.shape[1],1,1))
+            for t in range(len(self.time)):
+                loc[t]=ma.masked_where(maskin[t],loc[t])
+        else:
+            print('Mask dimension not understood: %s'%(maskin.shape) )
+
+        '''
         if (len(loc.shape)==4) and (len(maskin.squeeze().shape)==2):
-            print('Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
+            print('Masking '+ str(len(loc.shape))+ 'D variable with static '+str(len(maskin.shape))+'D mask')
             for t in range(loc.shape[0]):
                 for k in  range(loc.shape[1]):
-                    loc[t,k,:,:]=ma.masked_where(maskin.squeeze(),loc[t,k,:,:]) # ma.expand_dims(ma.expand_dims(maskin,0),0)
+                    loc[t,k,:,:]=ma.masked_where(maskin.squeeze(),loc[t,k,:,:]) # ma.expand_dims(ma.expand_dims(maskin,0),0)      
+        elif ((len(maskin.squeeze().shape)==3) and (maskin.shape[0]==self.time.shape)):
+            print('dynamic 2D mask .. OK')
+            for t in range(len(self.time)):
+                loc[t]=ma.masked_where(maskin.squeeze()[t],loc[t])
         else:
-            print('NOT Masking '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
-                
+            print('CAN NOT Mask '+ str(len(loc.shape))+ 'D variable with '+str(len(maskin.shape))+'D mask')
+        '''
+
         return loc
 
         
@@ -2082,3 +2112,66 @@ class G3D(object):
             self.Oxidation2D = self.vertint('Oxidation')
         else:
             print('NEED TO BE COMPLETED : Oxidation2D')
+
+#############################################################################        
+    def FluxBars(self, flist, reg=None, begdate=None, enddate=None, figsuffix='', type='int', unit='unit', factor=1): 
+        ''' 
+        :param  flist: list of fluxes variables that will be displayed with bar plots.  
+        :param  reg: regions map with integer values. 
+        ''' 
+
+        nreg = int(reg.max())
+        Budget = np.zeros([len(flist),nreg]) 
+
+        for i,f in enumerate(flist): 
+            for r in range(nreg): 
+                maskr = reg!=r+1 
+                if type =='int': 
+                    setattr(self,'ts'+f, self.integratespatial(f,maskin=maskr)) 
+                    Budget[i,r]=getattr(self,'ts'+f).sum()*(self.dates[1]-self.dates[0]).days*86400
+                elif type =='mean':  
+                    setattr(self,'ts'+f, self.avgspatial(f,maskin=maskr)) 
+                    Budget[i,r]=getattr(self,'ts'+f).mean() 
+
+        Budget=Budget*factor            
+  
+        fig  = plt.figure(figsize=(5*nreg, 10)) 
+
+        import seaborn as sns
+        import pandas as pd
+
+        dd=pd.DataFrame(Budget.T,columns=flist) 
+        dd['region']=range(nreg) 
+        palette=sns.color_palette('Spectral',len(flist)) 
+
+        for r in range(nreg): 
+            idx=np.argsort(Budget[:,r])
+            Bloc= Budget[idx[::-1],r]
+            floc = [ flist[i] for i in idx[::-1] ] 
+            paloc=[ palette[i] for i in idx[::-1] ] 
+            ax = fig.add_subplot(2,nreg,nreg+r+1)
+            sns.barplot(data=dd[dd['region']==r], palette=paloc, order=floc,ax=ax)
+
+            '''
+            ax = fig.add_subplot(2,nreg,nreg+r+1) 
+            ax.bar(floc,Bloc)
+            for i in range(len(flist)):
+                ax.text(i, (Budget.max()-Budget.min())/10*np.sign(Bloc[i])*-1, "{:.2f}".format(Bloc[i]) , rotation='vertical')
+            '''
+            ax.set_ylim(Budget.min(),Budget.max()) 
+            plt.xticks(range(len(flist)),floc, rotation=90) 
+            if r!=0: 
+                ax.get_yaxis().set_ticks([]) 
+            else: 
+                plt.ylabel(unit) 
+  
+            maskr = reg!=r+1 
+            ax2 = fig.add_subplot(2,nreg,r+1) 
+            ax2.pcolor(self.lon, self.lat, ma.masked_where(maskr==True,maskr).squeeze()) 
+            ax2.contour(self.lon, self.lat, self.bat.squeeze(), levels=[0,40,120]) 
+            ax2.axis('off') 
+          
+        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.3, right=0.95, left=0.05, top=0.95) 
+        fig.savefig(self.figoutputdir+'Bars_'+figsuffix+'.png') 
+        plt.close() 
+        return(Budget) 
