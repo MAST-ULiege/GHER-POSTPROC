@@ -2120,6 +2120,9 @@ class G3D(object):
         :param  reg: regions map with integer values. 
         ''' 
 
+        #this depends wether region index incluces a zero or not. 
+        if reg.min()==0:
+            reg=reg+1.0
         nreg = int(reg.max())
         Budget = np.zeros([len(flist),nreg]) 
 
@@ -2144,16 +2147,27 @@ class G3D(object):
         dd['region']=range(nreg) 
         palette=sns.color_palette('Spectral',len(flist)) 
 
+        yl1 = Budget.min()
+        yl2 = Budget.max()
+
         for r in range(nreg): 
             idx=np.argsort(Budget[:,r])
             Bloc= Budget[idx[::-1],r]
             floc = [ flist[i] for i in idx[::-1] ] 
             paloc=[ palette[i] for i in idx[::-1] ] 
             ax = fig.add_subplot(2,nreg,nreg+r+1)
-            sns.barplot(data=dd[dd['region']==r], palette=paloc, order=floc,ax=ax)
-
-            ax.set_ylim(Budget.min(),Budget.max()) 
+            splot= sns.barplot(data=dd[dd['region']==r], palette=paloc, order=floc,ax=ax)
+            ax.set_ylim(yl1 - (yl2-yl1)/10 , yl2 + (yl2-yl1)/10) 
             plt.xticks(range(len(flist)),floc, rotation=90) 
+
+            for p in splot.patches:
+                splot.annotate(format(p.get_height(), '.1f'), 
+                                   (p.get_x() + p.get_width() / 2., np.sign(p.get_height()) ), 
+                                   ha = 'center', va = 'center', 
+                                   size=15,
+                                   xytext = (0, -12), 
+                                   textcoords = 'offset points', rotation=90)
+
             if r!=0: 
                 ax.get_yaxis().set_ticks([]) 
             else: 

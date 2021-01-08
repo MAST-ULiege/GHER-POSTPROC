@@ -58,7 +58,6 @@ for v in flist2D:
         
         if mm==mlist[0]:
             N=Ni
-            reg = N.loadregionmask('./regions.nc','kopelevich')
         else:
             N.dates      = ma.append(N.dates   , Ni.dates,0)
             N.time       = ma.append(N.time    , Ni.time,0)
@@ -66,16 +65,9 @@ for v in flist2D:
 
     del Ni
 
-    #m5 = (reg != 5.0) & ~ (G1.bat.mask)
-
     N.timeclean(begdate=dt.datetime(2014,1,1), enddate=dt.datetime(2014,12,31))
 
-#reg=N.bat.copy() 
-#reg[N.bat<=120]=1 
-#reg[N.bat>120]=2
-
-#reg.mask=N.bat.mask
-reg=N.loadregionmask('regio_from_O2diags.nc','regio')
+reg=N.loadregionmask('region_O2_smooth.nc','region')
 
 Bmean = N.FluxBars(flist2D,reg, figsuffix='means',type='mean',factor=86400, unit='mmol/m²/d') 
 Bint  = N.FluxBars(flist2D,reg, figsuffix='ints' ,type='int' ,factor=1e-12, unit='Gmol') 
