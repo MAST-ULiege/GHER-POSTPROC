@@ -2152,12 +2152,6 @@ class G3D(object):
             ax = fig.add_subplot(2,nreg,nreg+r+1)
             sns.barplot(data=dd[dd['region']==r], palette=paloc, order=floc,ax=ax)
 
-            '''
-            ax = fig.add_subplot(2,nreg,nreg+r+1) 
-            ax.bar(floc,Bloc)
-            for i in range(len(flist)):
-                ax.text(i, (Budget.max()-Budget.min())/10*np.sign(Bloc[i])*-1, "{:.2f}".format(Bloc[i]) , rotation='vertical')
-            '''
             ax.set_ylim(Budget.min(),Budget.max()) 
             plt.xticks(range(len(flist)),floc, rotation=90) 
             if r!=0: 
