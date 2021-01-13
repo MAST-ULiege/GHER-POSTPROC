@@ -1826,7 +1826,7 @@ class G3D(object):
         for vvar, factor in sumdic.items():
             self.testvar(vvar)
             out = ma.add(out, getattr(self,vvar)*factor)
-            if self.sparemem: exec('del self.'+vvar)
+            if self.sparemem: exec('del self.'+vvar) #del getattr(self,vvar)
         return(out)
 
 ############################################################################
@@ -2017,6 +2017,14 @@ class G3D(object):
         else:
             print('NEED TO BE COMPLETED : instance_Photosynthesis')
 
+############################################################################ 
+# VARIABLE : Photosynthesis
+    def instance_Photosynthesis2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Photosynthesis2D = self.sumvar({'Carbon_UptakeFlagellates2D':1,'Carbon_UptakeDiatoms2D':1,'Carbon_UptakeEmiliana2D':1,'PhytoExtraDOC2D':1},i,j,k)
+        else:
+            print('NEED TO BE COMPLETED : instance_Photosynthesis2D')
+
 ############################################################################
 # VARIABLE : Oxidation
     def instance_Oxidation(self, i=None, j=None, k=None):
@@ -2059,17 +2067,18 @@ class G3D(object):
 
 ############################################################################
 # VARIABLE : Photosynthesis2D
-    def instance_Photosynthesis2D(self, i=None, j=None, k=None):
-        if (i is None) and (j is None) and (k is None):
-            self.Photosynthesis2D = self.vertint('Photosynthesis')
-        else:
-            print('NEED TO BE COMPLETED : Photosynthesis2D')
+#    def instance_Photosynthesis2D(self, i=None, j=None, k=None):
+#        if (i is None) and (j is None) and (k is None):
+#            self.Photosynthesis2D = self.vertint('Photosynthesis')
+#        else:
+#            print('NEED TO BE COMPLETED : Photosynthesis2D')
 
 ############################################################################
 # VARIABLE : PhytoNitrateReduction2D
     def instance_PhytoNitrateReduction2D(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.PhytoNitrateReduction2D = self.vertint('PhytoNitrateReduction')
+            if self.sparemem : del self.PhytoNitrateReduction
         else:
             print('NEED TO BE COMPLETED : PhytoNitrateReduction2D')
 
@@ -2078,14 +2087,49 @@ class G3D(object):
     def instance_Resp_Phyto2D(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.Resp_Phyto2D = self.vertint('Resp_Phyto')
+            if self.sparemem : del self.Resp_Phyto
         else:
             print('NEED TO BE COMPLETED : Resp_Phyto2D')
+
+#'Carbon_UptakeFlagellates2D':1,'Carbon_UptakeDiatoms2D':1,'Carbon_UptakeEmiliana2D':1,'PhytoExtraDOC2D
+
+############################################################################                                                                                                                                       # VARIABLE : Carbon_UptakeFlagellates2D
+    def instance_Carbon_UptakeFlagellates2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Carbon_UptakeFlagellates2D = self.vertint('Carbon_UptakeFlagellates')
+            if self.sparemem : del self.Carbon_UptakeFlagellates
+        else:
+            print('NEED TO BE COMPLETED : Carbon_UptakeFlagellates2D')
+
+############################################################################                                                                                                                                       # VARIABLE : Carbon_UptakeDiatoms2D 
+    def instance_Carbon_UptakeDiatoms2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Carbon_UptakeDiatoms2D = self.vertint('Carbon_UptakeDiatoms')
+            if self.sparemem : del self.Carbon_UptakeDiatoms
+        else:
+            print('NEED TO BE COMPLETED : Carbon_UptakeDiatoms2D')
+
+############################################################################                                                                                                                                       # VARIABLE : Carbon_UptakeEmiliana2D
+    def instance_Carbon_UptakeEmiliana2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.Carbon_UptakeEmiliana2D = self.vertint('Carbon_UptakeEmiliana')
+            if self.sparemem : del self.Carbon_UptakeEmiliana
+        else:
+            print('NEED TO BE COMPLETED : Carbon_UptakeEmiliana2D')
+############################################################################                                                                                                                                       # VARIABLE : PhytoExtraDOC2D
+    def instance_PhytoExtraDOC2D(self, i=None, j=None, k=None):
+        if (i is None) and (j is None) and (k is None):
+            self.PhytoExtraDOC2D = self.vertint('PhytoExtraDOC')
+            if self.sparemem : del self.PhytoExtraDOC
+        else:
+            print('NEED TO BE COMPLETED : PhytoExtraDOC2D')
 
 ############################################################################
 # VARIABLE : Resp_Zoo2D
     def instance_Resp_Zoo2D(self, i=None, j=None, k=None):
         if (i is None) and (j is None) and (k is None):
             self.Resp_Zoo2D = self.vertint('Resp_Zoo')
+            if self.sparemem : del self.Resp_Zoo
         else:
             print('NEED TO BE COMPLETED : Resp_Zoo2D')
 
