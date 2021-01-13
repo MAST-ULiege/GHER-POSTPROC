@@ -2158,7 +2158,7 @@ class G3D(object):
             print('NEED TO BE COMPLETED : Oxidation2D')
 
 #############################################################################        
-    def FluxBars(self, flist, reg=None, begdate=None, enddate=None, figsuffix='', type='int', unit='unit', factor=1): 
+    def FluxBars(self, flist, reg=None, begdate=None, enddate=None, figsuffix='', ptype='int', unit='unit', factor=1): 
         ''' 
         :param  flist: list of fluxes variables that will be displayed with bar plots.  
         :param  reg: regions map with integer values. 
@@ -2173,10 +2173,10 @@ class G3D(object):
         for i,f in enumerate(flist): 
             for r in range(nreg): 
                 maskr = reg!=r+1 
-                if type =='int': 
+                if ptype =='int': 
                     setattr(self,'ts'+f, self.integratespatial(f,maskin=maskr)) 
                     Budget[i,r]=getattr(self,'ts'+f).sum()*(self.dates[1]-self.dates[0]).days*86400
-                elif type =='mean':  
+                elif ptype =='mean':  
                     setattr(self,'ts'+f, self.avgspatial(f,maskin=maskr)) 
                     Budget[i,r]=getattr(self,'ts'+f).mean() 
 
@@ -2227,3 +2227,88 @@ class G3D(object):
         fig.savefig(self.figoutputdir+'Bars_'+figsuffix+'.png') 
         plt.close() 
         return(Budget) 
+
+
+    def FluxSeries(self, flist, reg=None, begdate=None, enddate=None, figsuffix='', ptype='int', unit='unit', factor=1): 
+        ''' 
+        :param  flist: list of fluxes variables that will be displayed with bar plots.  
+        :param  reg: regions map with integer values. 
+        ''' 
+
+        #this depends wether region index incluces a zero or not. 
+        if reg.min()==0:
+            reg=reg+1.0
+        nreg = int(reg.max())
+        Budget = np.zeros([len(flist),nreg, len(self.dates)]) 
+
+        for i,f in enumerate(flist): 
+            for r in range(nreg): 
+                maskr = reg!=r+1 
+                if ptype =='int': 
+                    setattr(self,'ts'+f, self.integratespatial(f,maskin=maskr)) 
+                    Budget[i,r,:]=getattr(self,'ts'+f).squeeze()*86400
+                elif ptype =='mean':  
+                    setattr(self,'ts'+f, self.avgspatial(f,maskin=maskr)) 
+                    Budget[i,r,:]=getattr(self,'ts'+f).squeeze()
+
+        Budget=Budget*factor            
+  
+        import seaborn as sns
+        import pandas as pd
+
+        dds=[]
+        for r in range(nreg):
+            br=Budget[:,r,:]
+            dd=pd.DataFrame(br.T, columns=flist)
+            dd['Region']=r+1 
+            dd['Date']=self.dates
+            dds.append(dd)
+
+        ddf=pd.concat(dds)
+        ddfm=pd.melt(ddf,id_vars=['Region','Date'])
+        
+        pp=sns.relplot(data=ddfm, x="Date", y="value",row="Region", hue="variable",kind="line")
+
+        '''
+        dd=pd.DataFrame(Budget.T,columns=flist) 
+        dd['region']=range(nreg) 
+        palette=sns.color_palette('Spectral',len(flist)) 
+
+        yl1 = Budget.min()
+        yl2 = Budget.max()
+
+        for r in range(nreg): 
+            idx=np.argsort(Budget[:,r])
+            Bloc= Budget[idx[::-1],r]
+            floc = [ flist[i] for i in idx[::-1] ] 
+            paloc=[ palette[i] for i in idx[::-1] ] 
+            ax = fig.add_subplot(2,nreg,nreg+r+1)
+            splot= sns.barplot(data=dd[dd['region']==r], palette=paloc, order=floc,ax=ax)
+            ax.set_ylim(yl1 - (yl2-yl1)/10 , yl2 + (yl2-yl1)/10) 
+            plt.xticks(range(len(flist)),floc, rotation=90) 
+
+            for p in splot.patches:
+                splot.annotate(format(p.get_height(), '.1f'), 
+                                   (p.get_x() + p.get_width() / 2., np.sign(p.get_height()) ), 
+                                   ha = 'center', va = 'center', 
+                                   size=15,
+                                   xytext = (0, -12), 
+                                   textcoords = 'offset points', rotation=90)
+
+            if r!=0: 
+                ax.get_yaxis().set_ticks([]) 
+            else: 
+                plt.ylabel(unit) 
+  
+            maskr = reg!=r+1 
+            ax2 = fig.add_subplot(2,nreg,r+1) 
+            ax2.pcolor(self.lon, self.lat, ma.masked_where(maskr==True,maskr).squeeze()) 
+            ax2.contour(self.lon, self.lat, self.bat.squeeze(), levels=[0,40,120]) 
+            ax2.axis('off') 
+          
+        fig.subplots_adjust(hspace=0.1,wspace=0.1, bottom=0.3, right=0.95, left=0.05, top=0.95) 
+        '''
+        pp.fig.savefig(self.figoutputdir+'TimeSeries_'+figsuffix+'.png') 
+        plt.close() 
+        return(ddfm) 
+
