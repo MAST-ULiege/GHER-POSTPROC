@@ -21,7 +21,7 @@ class G3Ddata(object):
     '''This is a class for model-data comparison.''' 
 ######################################################################
 
-    def __init__(self,infile, variable, vardataname, mode='mat'):
+    def __init__(self,infile, variablename, vardataname, mode='mat'):
 
         self.infile = infile
         self.mode   = mode
@@ -44,7 +44,7 @@ class G3Ddata(object):
             self.obs      = test[vardataname].squeeze()
             self.time     = test['time'].squeeze()
             self.depth     = test['depth'].squeeze()
-            self.variable = variable
+            self.variable = variablename
             self.model    = np.empty_like(self.obs)
 
             self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
@@ -53,7 +53,9 @@ class G3Ddata(object):
             with Dataset(infile,'r') as inf:
                 for name, variable in inf.variables.items():
                     self.__setattr__(name,inf.variables[name][:]) 
-            self.dates = [dt.datetime(1858,11,17)+dt.timedelta(seconds=int(t*86400)) for t in self.time]
+            self.dates = [dt.datetime(1992,02,25,19,40,0)+dt.timedelta(seconds=int(t)) for t in self.time]
+            self.variable = variablename
+            self.model    = np.empty_like(self.obs)
 
     def subset(self, lons=None, lats=None, datess=None, depths=None):
         if lons is not None:  
