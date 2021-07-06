@@ -1624,6 +1624,38 @@ class G3D(object):
 
         return f
 
+####
+    def instance_Z20cheap(self, i=None,j=None,k=None):
+        self.testz()
+
+        if ( i is None) and (j is None):
+            self.testvar('DOX')
+            Z20cheap = self.DOX[:,self.ksurface].copy()[:,None,:,:]
+            
+            bibi=ma.masked_where( self.DOX>20.0, self.DOX)
+            for t in range(len(self.dates)):        
+                Z20cheap[t] = ma.masked_where(bibi[t].mask,self.z[0]).min(axis=0)-ma.masked_where(bibi[t].mask,self.dz[0]).min(axis=0)/2
+            
+#                for i in range(self.Z20cheap.shape[2]):
+#                    for j in range(self.Z20cheap.shape[3]):
+#                        if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
+#                            continue
+#                        f = np.interp(20, self.DOX[t,::-1,i,j],self.z[0,::-1,i,j])
+#                        self.Z20[t,0,i,j]=f
+#                        self.Z20cheap[t,0,i,j]=(self.z[0, self.DOX[0,:,i,j]<20,i,j]).min() 
+                self.Z20cheap = Z20cheap
+
+        else:
+            self.testvar('DOX',i=i,j=j)
+            ldox=getattr(self,'DOXi'+i+'j'+j).squeeze() 
+            #exec('ldox=self.DOXi'+i+'j'+j+'.squeeze()')
+            loc = ma.empty_like(ldox)
+
+            for t in range(len(self.dates)):
+                f = np.interp(20, ldox[::-1],self.z[0,::-1,i,j],left=np.nan, right=np.nan )
+
+                
+#        return self.Z20cheap
 
 ############################################################################                                                                                                             
 # VARIABLE : VOX, cf Capet et al. 2016, Biogeosciences
@@ -1650,8 +1682,30 @@ class G3D(object):
                         continue
                     f = np.interp(20, self.DOX[t,::-1,i,j],self.DEN[0,::-1,i,j],left=np.nan, right=np.nan )
                     self.R20[t,0,i,j]=f
-
+                    
         return self.R20
+
+
+######################################################## 
+# VARIABLE : R20, cf Capet et al. 2016, Biogeosciences  
+    def instance_R20cheap(self, i=None,j=None,k=None):
+        self.testz()
+        self.testvar('DOX')
+        self.testvar('DEN')
+
+        self.R20cheap = self.DOX[:,self.ksurface].copy()[:,None,:,:]
+
+        for t in range(len(self.dates)):
+            for i in range(self.R20.shape[2]):
+                for j in range(self.R20.shape[3]):
+                    if ma.is_masked(self.DOX[t,self.ksurface,i,j]):
+                        continue
+                    #f = np.interp(20, self.DOX[t,::-1,i,j],self.DEN[0,::-1,i,j],left=np.nan, right=np.nan )
+                    #self.R20cheap[t,0,i,j]=f
+                    self.R20cheap[t,0,i,j]=(self.DEN[0, self.DOX[0,:,i,j]<20,i,j]).min()
+
+        return self.R20cheap
+
 
 ###########################################################################
 
@@ -1664,6 +1718,19 @@ class G3D(object):
                     if ma.is_masked(self.DENat3[t,0,i,j]):
                         continue
                     self.DENat3[t,0,i,j]=np.interp(3,self.z[0,:,i,j],self.DEN[t,:,i,j])
+
+############################################################################
+
+    def instance_NOSatMLD(self, i=None,j=None, k=None):
+        self.testvar('somld_bs',i=i,j=j)
+        self.testvar('NOS',i=i, j=j) 
+        self.NOSatMLD=np.zeros_like(self.somld_bs)
+        for t in range(len(self.dates)):
+            for i in range(self.bat.shape[2]):
+                for j in range(self.bat.shape[3]):
+                    if (ma.is_masked(self.somld_bs[t,0,i,j])) |(ma.is_masked(self.bat[0,0,i,j])) :
+                        continue
+                    self.NOSatMLD[t,0,i,j]=np.interp(self.somld_bs[t,0,i,j],self.z[0,:,i,j],self.NOS[t,:,i,j])
 
 ############################################################################   
 # VARIABLE tracer age ... should be made generic for tracer number
